@@ -27,16 +27,28 @@ import org.apache.shardingsphere.sharding.api.config.ShardingRuleConfiguration;
 import org.apache.shardingsphere.sharding.api.config.rule.ShardingTableRuleConfiguration;
 import org.apache.shardingsphere.sharding.api.config.strategy.keygen.KeyGenerateStrategyConfiguration;
 import org.apache.shardingsphere.sharding.api.config.strategy.sharding.StandardShardingStrategyConfiguration;
-</#if>
-<#if feature=="readwrite-splitting">
+<#elseif feature=="readwrite-splitting">
 import org.apache.shardingsphere.readwritesplitting.api.ReadwriteSplittingRuleConfiguration;
 import org.apache.shardingsphere.readwritesplitting.api.rule.ReadwriteSplittingDataSourceRuleConfiguration;
-</#if>
-<#if feature=="encrypt">
+<#elseif feature=="encrypt">
 import org.apache.shardingsphere.infra.config.algorithm.ShardingSphereAlgorithmConfiguration;
 import org.apache.shardingsphere.encrypt.api.config.EncryptRuleConfiguration;
 import org.apache.shardingsphere.encrypt.api.config.rule.EncryptColumnRuleConfiguration;
 import org.apache.shardingsphere.encrypt.api.config.rule.EncryptTableRuleConfiguration;
+<#elseif feature=="shadow">
+import org.apache.shardingsphere.infra.config.RuleConfiguration;
+import org.apache.shardingsphere.infra.config.algorithm.ShardingSphereAlgorithmConfiguration;
+import org.apache.shardingsphere.infra.config.properties.ConfigurationPropertyKey;
+import org.apache.shardingsphere.shadow.api.config.ShadowRuleConfiguration;
+import org.apache.shardingsphere.shadow.api.config.datasource.ShadowDataSourceConfiguration;
+import org.apache.shardingsphere.shadow.api.config.table.ShadowTableConfiguration;
+<#elseif feature=="db-discovery">
+import com.google.common.collect.Lists;
+import org.apache.shardingsphere.dbdiscovery.api.config.DatabaseDiscoveryRuleConfiguration;
+import org.apache.shardingsphere.dbdiscovery.api.config.rule.DatabaseDiscoveryDataSourceRuleConfiguration;
+import org.apache.shardingsphere.dbdiscovery.api.config.rule.DatabaseDiscoveryHeartBeatConfiguration;
+import org.apache.shardingsphere.driver.api.ShardingSphereDataSourceFactory;
+import org.apache.shardingsphere.infra.config.algorithm.ShardingSphereAlgorithmConfiguration;
 </#if>
 
 import javax.sql.DataSource;
@@ -52,23 +64,28 @@ import java.util.Properties;
     <#assign featureName=featureName + feature1?cap_first>
 </#list>
 public final class ${mode?cap_first}${transaction?cap_first}${featureName}${framework?cap_first}Configuration {
+<#if feature!="db-discovery">
     
     private static final String HOST = "${host}";
     
     private static final int PORT = ${(port)?c};
+</#if>
     
     private static final String USER_NAME = "${username}";
     
     private static final String PASSWORD = "${(password)?c}";
 <#if feature=="sharding">
     <#include "shardingConfiguration.ftl">
-</#if>
-<#if feature=="readwrite-splitting">
+<#elseif feature=="readwrite-splitting">
     <#include "readwritesplittingConfiguration.ftl">
-</#if>
-<#if feature=="encrypt">
+<#elseif feature=="encrypt">
     <#include "encryptConfiguration.ftl">
+<#elseif feature=="shadow">
+    <#include "shadowConfiguration.ftl">
+<#elseif feature=="db-discovery">
+    <#include "dbDiscoveryConfiguration.ftl">
 </#if>
+<#if feature!="db-discovery">
     private DataSource createDataSource(final String dataSourceName) {
         HikariDataSource result = new HikariDataSource();
         result.setDriverClassName("com.mysql.jdbc.Driver");
@@ -77,4 +94,5 @@ public final class ${mode?cap_first}${transaction?cap_first}${featureName}${fram
         result.setPassword(PASSWORD);
         return result;
     }
+</#if>
 }

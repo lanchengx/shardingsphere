@@ -35,6 +35,10 @@ showShardingAlgorithms
     : SHOW SHARDING ALGORITHMS (FROM schemaName)?
     ;
 
+showShardingTableNodes
+    : SHOW SHARDING TABLE NODES tableName? (FROM schemaName)?
+    ;
+    
 showShardingTablesCount
     : SHOW SHARDING TABLES COUNT (FROM schemaName)?
     ;

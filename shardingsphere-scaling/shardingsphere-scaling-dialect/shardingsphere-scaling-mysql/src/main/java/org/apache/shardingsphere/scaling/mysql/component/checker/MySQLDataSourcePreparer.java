@@ -18,11 +18,13 @@
 package org.apache.shardingsphere.scaling.mysql.component.checker;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.shardingsphere.scaling.core.common.datasource.DataSourceWrapper;
-import org.apache.shardingsphere.scaling.core.common.exception.PrepareFailedException;
-import org.apache.shardingsphere.scaling.core.config.JobConfiguration;
-import org.apache.shardingsphere.scaling.core.job.preparer.AbstractDataSourcePreparer;
-import org.apache.shardingsphere.scaling.mysql.component.MySQLScalingSQLBuilder;
+import org.apache.shardingsphere.data.pipeline.api.config.rulealtered.RuleConfiguration;
+import org.apache.shardingsphere.data.pipeline.api.datanode.JobDataNodeEntry;
+import org.apache.shardingsphere.data.pipeline.api.prepare.datasource.PrepareTargetTablesParameter;
+import org.apache.shardingsphere.data.pipeline.core.datasource.DataSourceWrapper;
+import org.apache.shardingsphere.data.pipeline.core.exception.PipelineJobPrepareFailedException;
+import org.apache.shardingsphere.data.pipeline.core.prepare.datasource.AbstractDataSourcePreparer;
+import org.apache.shardingsphere.scaling.mysql.component.MySQLPipelineSQLBuilder;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -30,6 +32,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.stream.Collectors;
 
 /**
  * Data source preparer for MySQL.
@@ -37,15 +40,16 @@ import java.util.Collections;
 @Slf4j
 public final class MySQLDataSourcePreparer extends AbstractDataSourcePreparer {
     
-    private final MySQLScalingSQLBuilder scalingSQLBuilder = new MySQLScalingSQLBuilder(Collections.emptyMap());
+    private final MySQLPipelineSQLBuilder scalingSQLBuilder = new MySQLPipelineSQLBuilder(Collections.emptyMap());
     
     @Override
-    public void prepareTargetTables(final JobConfiguration jobConfig) {
-        try (DataSourceWrapper sourceDataSource = getSourceDataSource(jobConfig);
+    public void prepareTargetTables(final PrepareTargetTablesParameter parameter) {
+        RuleConfiguration ruleConfig = parameter.getRuleConfig();
+        try (DataSourceWrapper sourceDataSource = getSourceDataSource(ruleConfig);
              Connection sourceConnection = sourceDataSource.getConnection();
-             DataSourceWrapper targetDataSource = getTargetDataSource(jobConfig);
+             DataSourceWrapper targetDataSource = getTargetDataSource(ruleConfig);
              Connection targetConnection = targetDataSource.getConnection()) {
-            Collection<String> logicTableNames = getLogicTableNames(jobConfig.getRuleConfig().getSource().unwrap());
+            Collection<String> logicTableNames = parameter.getTablesFirstDataNodes().getEntries().stream().map(JobDataNodeEntry::getLogicTableName).collect(Collectors.toList());
             for (String each : logicTableNames) {
                 String createTableSQL = getCreateTableSQL(sourceConnection, each);
                 createTableSQL = addIfNotExistsForCreateTableSQL(createTableSQL);
@@ -53,7 +57,7 @@ public final class MySQLDataSourcePreparer extends AbstractDataSourcePreparer {
                 log.info("create target table '{}' success", each);
             }
         } catch (final SQLException ex) {
-            throw new PrepareFailedException("prepare target tables failed.", ex);
+            throw new PipelineJobPrepareFailedException("prepare target tables failed.", ex);
         }
     }
     
@@ -61,7 +65,7 @@ public final class MySQLDataSourcePreparer extends AbstractDataSourcePreparer {
         String showCreateTableSQL = "SHOW CREATE TABLE " + scalingSQLBuilder.quote(logicTableName);
         try (Statement statement = sourceConnection.createStatement(); ResultSet resultSet = statement.executeQuery(showCreateTableSQL)) {
             if (!resultSet.next()) {
-                throw new PrepareFailedException("show create table has no result, sql: " + showCreateTableSQL);
+                throw new PipelineJobPrepareFailedException("show create table has no result, sql: " + showCreateTableSQL);
             }
             return resultSet.getString(2);
         }

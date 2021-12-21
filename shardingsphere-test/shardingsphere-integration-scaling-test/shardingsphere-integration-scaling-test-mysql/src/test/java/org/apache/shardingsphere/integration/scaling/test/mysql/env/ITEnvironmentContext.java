@@ -24,8 +24,8 @@ import org.apache.shardingsphere.integration.scaling.test.mysql.env.cases.DataSe
 import org.apache.shardingsphere.integration.scaling.test.mysql.env.cases.Type;
 import org.apache.shardingsphere.integration.scaling.test.mysql.env.config.SourceConfiguration;
 import org.apache.shardingsphere.integration.scaling.test.mysql.env.config.TargetConfiguration;
-import org.apache.shardingsphere.scaling.core.config.JobConfiguration;
-import org.apache.shardingsphere.scaling.core.config.RuleConfiguration;
+import org.apache.shardingsphere.data.pipeline.api.config.rulealtered.JobConfiguration;
+import org.apache.shardingsphere.data.pipeline.api.config.rulealtered.RuleConfiguration;
 import org.apache.shardingsphere.sharding.yaml.config.rule.YamlTableRuleConfiguration;
 
 import javax.sql.DataSource;
@@ -79,10 +79,10 @@ public final class ITEnvironmentContext {
     }
     
     private static String createScalingConfiguration(final Map<String, YamlTableRuleConfiguration> tableRules) {
-        JobConfiguration jobConfiguration = new JobConfiguration();
         RuleConfiguration ruleConfiguration = new RuleConfiguration();
         ruleConfiguration.setSource(SourceConfiguration.getDockerConfiguration(tableRules).wrap());
         ruleConfiguration.setTarget(TargetConfiguration.getDockerConfiguration().wrap());
+        JobConfiguration jobConfiguration = new JobConfiguration();
         jobConfiguration.setRuleConfig(ruleConfiguration);
         return new Gson().toJson(jobConfiguration);
     }

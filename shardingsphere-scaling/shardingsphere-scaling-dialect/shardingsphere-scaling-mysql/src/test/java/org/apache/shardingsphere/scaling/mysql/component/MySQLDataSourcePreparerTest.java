@@ -17,46 +17,46 @@
 
 package org.apache.shardingsphere.scaling.mysql.component;
 
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
-import java.sql.SQLException;
-import java.util.Collections;
-import javax.sql.DataSource;
-import org.apache.shardingsphere.infra.yaml.config.pojo.YamlRootConfiguration;
-import org.apache.shardingsphere.scaling.core.common.exception.PrepareFailedException;
-import org.apache.shardingsphere.scaling.core.config.JobConfiguration;
-import org.apache.shardingsphere.scaling.core.config.RuleConfiguration;
-import org.apache.shardingsphere.scaling.core.config.datasource.ScalingDataSourceConfigurationWrap;
-import org.apache.shardingsphere.scaling.core.config.datasource.ShardingSphereJDBCDataSourceConfiguration;
+import org.apache.shardingsphere.data.pipeline.api.config.rulealtered.RuleConfiguration;
+import org.apache.shardingsphere.data.pipeline.api.datanode.JobDataNodeLine;
+import org.apache.shardingsphere.data.pipeline.api.prepare.datasource.PrepareTargetTablesParameter;
+import org.apache.shardingsphere.data.pipeline.core.exception.PipelineJobPrepareFailedException;
+import org.apache.shardingsphere.infra.config.datasource.jdbc.config.JDBCDataSourceConfigurationWrapper;
+import org.apache.shardingsphere.infra.config.datasource.jdbc.config.impl.ShardingSphereJDBCDataSourceConfiguration;
 import org.apache.shardingsphere.scaling.mysql.component.checker.MySQLDataSourcePreparer;
-import org.apache.shardingsphere.sharding.yaml.config.YamlShardingRuleConfiguration;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
+import javax.sql.DataSource;
+import java.sql.SQLException;
+import java.util.Collections;
+
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 @RunWith(MockitoJUnitRunner.class)
 public final class MySQLDataSourcePreparerTest {
 
     @Mock
-    private JobConfiguration jobConfiguration;
+    private PrepareTargetTablesParameter prepareTargetTablesParameter;
 
     @Mock
-    private RuleConfiguration ruleConfiguration;
+    private RuleConfiguration ruleConfig;
 
     @Mock
-    private ScalingDataSourceConfigurationWrap sourceScalingDataSourceConfigurationWrap;
+    private JDBCDataSourceConfigurationWrapper sourceDataSourceConfigurationWrapper;
 
     @Mock
-    private ScalingDataSourceConfigurationWrap targetScalingDataSourceConfigurationWrap;
+    private JDBCDataSourceConfigurationWrapper targetDataSourceConfigurationWrapper;
 
     @Mock
-    private ShardingSphereJDBCDataSourceConfiguration sourceScalingDataSourceConfiguration;
+    private ShardingSphereJDBCDataSourceConfiguration sourceScalingDataSourceConfig;
 
     @Mock
-    private ShardingSphereJDBCDataSourceConfiguration targetScalingDataSourceConfiguration;
+    private ShardingSphereJDBCDataSourceConfiguration targetScalingDataSourceConfig;
 
     @Mock(extraInterfaces = AutoCloseable.class)
     private DataSource sourceDataSource;
@@ -64,37 +64,30 @@ public final class MySQLDataSourcePreparerTest {
     @Mock(extraInterfaces = AutoCloseable.class)
     private DataSource targetDataSource;
 
-    @Mock
-    private YamlRootConfiguration yamlRootConfiguration;
-
-    @Mock
-    private YamlShardingRuleConfiguration yamlShardingRuleConfiguration;
-
     @Before
     public void setUp() throws SQLException {
-        when(jobConfiguration.getRuleConfig()).thenReturn(ruleConfiguration);
-        when(ruleConfiguration.getSource()).thenReturn(sourceScalingDataSourceConfigurationWrap);
-        when(sourceScalingDataSourceConfigurationWrap.unwrap()).thenReturn(sourceScalingDataSourceConfiguration);
-        when(sourceScalingDataSourceConfiguration.toDataSource()).thenReturn(sourceDataSource);
-        when(sourceScalingDataSourceConfiguration.getRootConfig()).thenReturn(yamlRootConfiguration);
-        when(yamlRootConfiguration.getRules()).thenReturn(Collections.singletonList(yamlShardingRuleConfiguration));
-        when(ruleConfiguration.getTarget()).thenReturn(targetScalingDataSourceConfigurationWrap);
-        when(targetScalingDataSourceConfigurationWrap.unwrap()).thenReturn(targetScalingDataSourceConfiguration);
-        when(targetScalingDataSourceConfiguration.toDataSource()).thenReturn(targetDataSource);
+        when(prepareTargetTablesParameter.getRuleConfig()).thenReturn(ruleConfig);
+        when(prepareTargetTablesParameter.getTablesFirstDataNodes()).thenReturn(new JobDataNodeLine(Collections.emptyList()));
+        when(ruleConfig.getSource()).thenReturn(sourceDataSourceConfigurationWrapper);
+        when(sourceDataSourceConfigurationWrapper.unwrap()).thenReturn(sourceScalingDataSourceConfig);
+        when(sourceScalingDataSourceConfig.toDataSource()).thenReturn(sourceDataSource);
+        when(ruleConfig.getTarget()).thenReturn(targetDataSourceConfigurationWrapper);
+        when(targetDataSourceConfigurationWrapper.unwrap()).thenReturn(targetScalingDataSourceConfig);
+        when(targetScalingDataSourceConfig.toDataSource()).thenReturn(targetDataSource);
     }
-
+    
     @Test
     public void assertGetConnection() throws SQLException {
         MySQLDataSourcePreparer mySQLDataSourcePreparer = new MySQLDataSourcePreparer();
-        mySQLDataSourcePreparer.prepareTargetTables(jobConfiguration);
+        mySQLDataSourcePreparer.prepareTargetTables(prepareTargetTablesParameter);
         verify(sourceDataSource).getConnection();
         verify(targetDataSource).getConnection();
     }
-
-    @Test(expected = PrepareFailedException.class)
+    
+    @Test(expected = PipelineJobPrepareFailedException.class)
     public void assertThrowPrepareFailedException() throws SQLException {
         when(sourceDataSource.getConnection()).thenThrow(SQLException.class);
         MySQLDataSourcePreparer mySQLDataSourcePreparer = new MySQLDataSourcePreparer();
-        mySQLDataSourcePreparer.prepareTargetTables(jobConfiguration);
+        mySQLDataSourcePreparer.prepareTargetTables(prepareTargetTablesParameter);
     }
 }

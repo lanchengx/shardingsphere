@@ -19,7 +19,9 @@ package org.apache.shardingsphere.test.sql.parser.parameterized.asserts.statemen
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
+import org.apache.shardingsphere.dbdiscovery.distsql.parser.statement.ShowDatabaseDiscoveryHeartbeatsStatement;
 import org.apache.shardingsphere.dbdiscovery.distsql.parser.statement.ShowDatabaseDiscoveryRulesStatement;
+import org.apache.shardingsphere.dbdiscovery.distsql.parser.statement.ShowDatabaseDiscoveryTypesStatement;
 import org.apache.shardingsphere.distsql.parser.statement.rql.show.ShowRulesStatement;
 import org.apache.shardingsphere.distsql.parser.statement.rql.show.ShowSingleTableRulesStatement;
 import org.apache.shardingsphere.distsql.parser.statement.rql.show.ShowSingleTableStatement;
@@ -30,6 +32,7 @@ import org.apache.shardingsphere.shadow.distsql.parser.statement.ShowShadowRules
 import org.apache.shardingsphere.sharding.distsql.parser.statement.ShowShardingAlgorithmsStatement;
 import org.apache.shardingsphere.sharding.distsql.parser.statement.ShowShardingBindingTableRulesStatement;
 import org.apache.shardingsphere.sharding.distsql.parser.statement.ShowShardingBroadcastTableRulesStatement;
+import org.apache.shardingsphere.sharding.distsql.parser.statement.ShowShardingTableNodesStatement;
 import org.apache.shardingsphere.sharding.distsql.parser.statement.ShowShardingTableRulesStatement;
 import org.apache.shardingsphere.sharding.distsql.parser.statement.ShowShardingTablesCountStatement;
 import org.apache.shardingsphere.test.sql.parser.parameterized.asserts.SQLCaseAssertContext;
@@ -41,6 +44,7 @@ import org.apache.shardingsphere.test.sql.parser.parameterized.asserts.statement
 import org.apache.shardingsphere.test.sql.parser.parameterized.asserts.statement.distsql.rql.impl.rule.ShowShardingAlgorithmsStatementAssert;
 import org.apache.shardingsphere.test.sql.parser.parameterized.asserts.statement.distsql.rql.impl.rule.ShowShardingBindingTableRulesStatementAssert;
 import org.apache.shardingsphere.test.sql.parser.parameterized.asserts.statement.distsql.rql.impl.rule.ShowShardingBroadcastTableRulesStatementAssert;
+import org.apache.shardingsphere.test.sql.parser.parameterized.asserts.statement.distsql.rql.impl.rule.ShowShardingTableNodesStatementAssert;
 import org.apache.shardingsphere.test.sql.parser.parameterized.asserts.statement.distsql.rql.impl.rule.ShowShardingTableRulesStatementAssert;
 import org.apache.shardingsphere.test.sql.parser.parameterized.asserts.statement.distsql.rql.impl.rule.ShowShardingTablesCountStatementAssert;
 import org.apache.shardingsphere.test.sql.parser.parameterized.asserts.statement.distsql.rql.impl.rule.ShowSingleTableRulesStatementAssert;
@@ -54,6 +58,7 @@ import org.apache.shardingsphere.test.sql.parser.parameterized.jaxb.cases.domain
 import org.apache.shardingsphere.test.sql.parser.parameterized.jaxb.cases.domain.statement.distsql.rql.ShowShardingAlgorithmsStatementTestCase;
 import org.apache.shardingsphere.test.sql.parser.parameterized.jaxb.cases.domain.statement.distsql.rql.ShowShardingBindingTableRulesStatementTestCase;
 import org.apache.shardingsphere.test.sql.parser.parameterized.jaxb.cases.domain.statement.distsql.rql.ShowShardingBroadcastTableRulesStatementTestCase;
+import org.apache.shardingsphere.test.sql.parser.parameterized.jaxb.cases.domain.statement.distsql.rql.ShowShardingTableNodesStatementTestCase;
 import org.apache.shardingsphere.test.sql.parser.parameterized.jaxb.cases.domain.statement.distsql.rql.ShowShardingTableRulesStatementTestCase;
 import org.apache.shardingsphere.test.sql.parser.parameterized.jaxb.cases.domain.statement.distsql.rql.ShowShardingTablesCountStatementTestCase;
 import org.apache.shardingsphere.test.sql.parser.parameterized.jaxb.cases.domain.statement.distsql.rql.ShowSingleTableRulesStatementTestCase;
@@ -73,8 +78,8 @@ public final class ShowRulesStatementAssert {
      * @param expected expected show rule statement test case
      */
     public static void assertIs(final SQLCaseAssertContext assertContext, final ShowRulesStatement actual, final SQLParserTestCase expected) {
-        if (actual instanceof ShowDatabaseDiscoveryRulesStatement) {
-            ShowDatabaseDiscoveryRulesStatementAssert.assertIs(assertContext, (ShowDatabaseDiscoveryRulesStatement) actual, (ShowDataBaseDiscoveryRulesStatementTestCase) expected);
+        if (actual instanceof ShowDatabaseDiscoveryRulesStatement || actual instanceof ShowDatabaseDiscoveryTypesStatement || actual instanceof ShowDatabaseDiscoveryHeartbeatsStatement) {
+            ShowDatabaseDiscoveryRulesStatementAssert.assertIs(assertContext, actual, (ShowDataBaseDiscoveryRulesStatementTestCase) expected);
         } else if (actual instanceof ShowEncryptRulesStatement) {
             ShowEncryptRulesStatementAssert.assertIs(assertContext, (ShowEncryptRulesStatement) actual, (ShowEncryptRulesStatementTestCase) expected);
         } else if (actual instanceof ShowReadwriteSplittingRulesStatement) {
@@ -87,6 +92,8 @@ public final class ShowRulesStatementAssert {
             ShowShardingAlgorithmsStatementAssert.assertIs(assertContext, (ShowShardingAlgorithmsStatement) actual, (ShowShardingAlgorithmsStatementTestCase) expected);
         } else if (actual instanceof ShowShardingTableRulesStatement) {
             ShowShardingTableRulesStatementAssert.assertIs(assertContext, (ShowShardingTableRulesStatement) actual, (ShowShardingTableRulesStatementTestCase) expected);
+        } else if (actual instanceof ShowShardingTableNodesStatement) {
+            ShowShardingTableNodesStatementAssert.assertIs(assertContext, (ShowShardingTableNodesStatement) actual, (ShowShardingTableNodesStatementTestCase) expected);
         } else if (actual instanceof ShowShadowRulesStatement) {
             ShowShadowRulesStatementAssert.assertIs(assertContext, (ShowShadowRulesStatement) actual, (ShowShadowRulesStatementTestCase) expected);
         } else if (actual instanceof ShowShadowAlgorithmsStatement) {

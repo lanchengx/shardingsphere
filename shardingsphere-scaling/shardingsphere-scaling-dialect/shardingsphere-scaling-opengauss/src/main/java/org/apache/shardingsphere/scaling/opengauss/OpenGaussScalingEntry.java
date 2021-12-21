@@ -17,13 +17,13 @@
 
 package org.apache.shardingsphere.scaling.opengauss;
 
+import org.apache.shardingsphere.data.pipeline.opengauss.ingest.OpenGaussPositionInitializer;
+import org.apache.shardingsphere.data.pipeline.opengauss.ingest.OpenGaussWalDumper;
+import org.apache.shardingsphere.data.pipeline.postgresql.ingest.PostgreSQLInventoryDumper;
 import org.apache.shardingsphere.scaling.core.spi.ScalingEntry;
 import org.apache.shardingsphere.scaling.opengauss.component.OpenGaussImporter;
-import org.apache.shardingsphere.scaling.opengauss.component.OpenGaussPositionInitializer;
-import org.apache.shardingsphere.scaling.opengauss.component.OpenGaussScalingSQLBuilder;
-import org.apache.shardingsphere.scaling.opengauss.component.OpenGaussWalDumper;
+import org.apache.shardingsphere.scaling.opengauss.component.OpenGaussPipelineSQLBuilder;
 import org.apache.shardingsphere.scaling.opengauss.component.checker.OpenGaussEnvironmentChecker;
-import org.apache.shardingsphere.scaling.postgresql.component.PostgreSQLInventoryDumper;
 
 /**
  * OpenGauss scaling entry.
@@ -56,8 +56,8 @@ public final class OpenGaussScalingEntry implements ScalingEntry {
     }
     
     @Override
-    public Class<OpenGaussScalingSQLBuilder> getSQLBuilderClass() {
-        return OpenGaussScalingSQLBuilder.class;
+    public Class<OpenGaussPipelineSQLBuilder> getSQLBuilderClass() {
+        return OpenGaussPipelineSQLBuilder.class;
     }
     
     @Override

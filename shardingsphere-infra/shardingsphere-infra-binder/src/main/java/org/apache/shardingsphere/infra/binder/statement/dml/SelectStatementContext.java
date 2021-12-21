@@ -150,6 +150,15 @@ public final class SelectStatementContext extends CommonSQLStatementContext<Sele
     }
     
     /**
+     * Judge whether contains union or not.
+     *
+     * @return whether contains union or not
+     */
+    public boolean isContainsUnion() {
+        return !getSqlStatement().getUnionSegments().isEmpty();
+    }
+    
+    /**
      * Judge whether contains partial distinct aggregation.
      * 
      * @return whether contains partial distinct aggregation
@@ -255,11 +264,14 @@ public final class SelectStatementContext extends CommonSQLStatementContext<Sele
     }
     
     private Collection<TableSegment> getAllTableSegments() {
-        Collection<TableSegment> result = new LinkedList<>();
         TableExtractor tableExtractor = new TableExtractor();
         tableExtractor.extractTablesFromSelect(getSqlStatement());
-        result.addAll(tableExtractor.getRewriteTables());
-        result.addAll(tableExtractor.getTableContext().stream().filter(each -> each instanceof SubqueryTableSegment).collect(Collectors.toList()));
+        Collection<TableSegment> result = new LinkedList<>(tableExtractor.getRewriteTables());
+        for (TableSegment each : tableExtractor.getTableContext()) {
+            if (each instanceof SubqueryTableSegment) {
+                result.add(each);
+            }
+        }
         return result;
     }
 }
