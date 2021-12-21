@@ -17,6 +17,7 @@
 
 package org.apache.shardingsphere.sharding.distsql.handler.query;
 
+import org.apache.shardingsphere.infra.config.algorithm.ShardingSphereAlgorithmConfiguration;
 import org.apache.shardingsphere.infra.datanode.DataNode;
 import org.apache.shardingsphere.infra.distsql.query.DistSQLResultSet;
 import org.apache.shardingsphere.infra.metadata.ShardingSphereMetaData;
@@ -42,6 +43,8 @@ import java.util.stream.Collectors;
  */
 public final class ShardingTablesCountQueryResultSet implements DistSQLResultSet {
     
+    private static final String SHARDING_COUNT_KEY = "sharding-count";
+    
     private static final String TABLE = "table";
     
     private static final String COUNT = "count";
@@ -50,25 +53,29 @@ public final class ShardingTablesCountQueryResultSet implements DistSQLResultSet
     
     @Override
     public void init(final ShardingSphereMetaData metaData, final SQLStatement sqlStatement) {
-        metaData.getRuleMetaData().getConfigurations().stream().filter(each -> each instanceof ShardingRuleConfiguration)
-                .map(each -> (ShardingRuleConfiguration) each).forEach(each -> data = getDataSourceCount(each).entrySet().iterator());
+        metaData.getRuleMetaData().getConfigurations().stream()
+                .filter(each -> each instanceof ShardingRuleConfiguration).map(each -> (ShardingRuleConfiguration) each)
+                .forEach(each -> data = getDataSourceCount(each).entrySet().iterator());
     }
     
     private Map<String, Integer> getDataSourceCount(final ShardingRuleConfiguration config) {
         Map<String, Integer> result = new LinkedHashMap<>();
-        Map<String, Integer> tableCount = config.getTables().stream()
-                .collect(Collectors.toMap(ShardingTableRuleConfiguration::getLogicTable, this::getCount, Integer::sum, LinkedHashMap::new));
-        Map<String, Integer> autoTableCount = config.getAutoTables().stream()
-                .collect(Collectors.toMap(ShardingAutoTableRuleConfiguration::getLogicTable, this::getCount, Integer::sum, LinkedHashMap::new));
+        Map<String, Integer> tableCount = config.getTables().stream().collect(Collectors.toMap(
+                ShardingTableRuleConfiguration::getLogicTable, this::getCount, Integer::sum, LinkedHashMap::new));
+        Map<String, Integer> autoTableCount = config.getAutoTables().stream().collect(Collectors.toMap(
+                ShardingAutoTableRuleConfiguration::getLogicTable, e -> getCount(e, config.getShardingAlgorithms()),
+                Integer::sum, LinkedHashMap::new));
         result.putAll(tableCount);
         result.putAll(autoTableCount);
         return result;
     }
     
-    private Integer getCount(final ShardingAutoTableRuleConfiguration shardingAutoTableRuleConfig) {
-        List<String> actualDataSources = new InlineExpressionParser(shardingAutoTableRuleConfig.getActualDataSources())
-                .splitAndEvaluate();
-        return actualDataSources.size();
+    private Integer getCount(final ShardingAutoTableRuleConfiguration shardingAutoTableRuleConfig,
+                             final Map<String, ShardingSphereAlgorithmConfiguration> shardingAlgorithms) {
+        String shardingAlgorithmName = shardingAutoTableRuleConfig.getShardingStrategy().getShardingAlgorithmName();
+        ShardingSphereAlgorithmConfiguration algorithmConfiguration = shardingAlgorithms.get(shardingAlgorithmName);
+        String shardingCount = algorithmConfiguration.getProps().getProperty(SHARDING_COUNT_KEY);
+        return Integer.parseInt(shardingCount);
     }
     
     private Integer getCount(final ShardingTableRuleConfiguration shardingTableRuleConfig) {

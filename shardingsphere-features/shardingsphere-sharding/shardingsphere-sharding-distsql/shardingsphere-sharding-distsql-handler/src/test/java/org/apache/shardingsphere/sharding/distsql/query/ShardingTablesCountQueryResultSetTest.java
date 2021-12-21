@@ -18,11 +18,13 @@
 package org.apache.shardingsphere.sharding.distsql.query;
 
 import org.apache.shardingsphere.infra.config.RuleConfiguration;
+import org.apache.shardingsphere.infra.config.algorithm.ShardingSphereAlgorithmConfiguration;
 import org.apache.shardingsphere.infra.distsql.query.DistSQLResultSet;
 import org.apache.shardingsphere.infra.metadata.ShardingSphereMetaData;
 import org.apache.shardingsphere.sharding.api.config.ShardingRuleConfiguration;
 import org.apache.shardingsphere.sharding.api.config.rule.ShardingAutoTableRuleConfiguration;
 import org.apache.shardingsphere.sharding.api.config.rule.ShardingTableRuleConfiguration;
+import org.apache.shardingsphere.sharding.api.config.strategy.sharding.StandardShardingStrategyConfiguration;
 import org.apache.shardingsphere.sharding.distsql.handler.query.ShardingTablesCountQueryResultSet;
 import org.apache.shardingsphere.sharding.distsql.parser.statement.ShowShardingTableRulesStatement;
 import org.junit.Test;
@@ -31,6 +33,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Properties;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertFalse;
@@ -54,7 +57,7 @@ public final class ShardingTablesCountQueryResultSetTest {
         resultSet.next();
         actual = new ArrayList<>(resultSet.getRowData());
         assertThat(actual.get(0), is("t_product"));
-        assertThat(actual.get(1), is(2));
+        assertThat(actual.get(1), is(16));
     }
     
     @Test
@@ -69,8 +72,28 @@ public final class ShardingTablesCountQueryResultSetTest {
     
     private Collection<RuleConfiguration> createRuleConfigurations() {
         ShardingRuleConfiguration result = new ShardingRuleConfiguration();
-        result.getTables().add(new ShardingTableRuleConfiguration("t_order", "ds_${0..1}.t_order_${0..1}"));
-        result.getAutoTables().add(new ShardingAutoTableRuleConfiguration("t_product", "ds_${0..1}.t_order_${0..1}"));
+        result.getShardingAlgorithms().put("al_name", createAlgorithmConfiguration());
+        result.getTables().add(crateTableRuleConfiguration());
+        result.getAutoTables().add(createAutoTableRuleConfiguration());
         return Collections.singleton(result);
+    }
+    
+    private ShardingSphereAlgorithmConfiguration createAlgorithmConfiguration() {
+        Properties properties = new Properties();
+        properties.put("sharding-count", "16");
+        return new ShardingSphereAlgorithmConfiguration("hash_mod", properties);
+    }
+    
+    private ShardingAutoTableRuleConfiguration createAutoTableRuleConfiguration() {
+        ShardingAutoTableRuleConfiguration autoTableRuleConfiguration
+                = new ShardingAutoTableRuleConfiguration("t_product", "ds_0,ds_1");
+        StandardShardingStrategyConfiguration strategyConfiguration
+                = new StandardShardingStrategyConfiguration("product_id", "al_name");
+        autoTableRuleConfiguration.setShardingStrategy(strategyConfiguration);
+        return autoTableRuleConfiguration;
+    }
+    
+    private ShardingTableRuleConfiguration crateTableRuleConfiguration() {
+        return new ShardingTableRuleConfiguration("t_order", "ds_${0..1}.t_order_${0..1}");
     }
 }
