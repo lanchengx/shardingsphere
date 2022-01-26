@@ -15,23 +15,12 @@
  * limitations under the License.
  */
 
-package org.apache.shardingsphere.infra.config;
+package org.apache.shardingsphere.test.sql.parser.parameterized.jaxb.cases.domain.statement.tcl;
 
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
-import org.apache.shardingsphere.infra.datasource.config.DataSourceConfiguration;
-
-import java.util.Collection;
-import java.util.Map;
+import org.apache.shardingsphere.test.sql.parser.parameterized.jaxb.cases.domain.statement.SQLParserTestCase;
 
 /**
- * Schema configuration.
+ * Unlock statement test case.
  */
-@RequiredArgsConstructor
-@Getter
-public final class SchemaConfiguration {
-    
-    private final Map<String, DataSourceConfiguration> dataSources;
-    
-    private final Collection<RuleConfiguration> rules;
+public final class UnlockStatementTestCase extends SQLParserTestCase {
 }

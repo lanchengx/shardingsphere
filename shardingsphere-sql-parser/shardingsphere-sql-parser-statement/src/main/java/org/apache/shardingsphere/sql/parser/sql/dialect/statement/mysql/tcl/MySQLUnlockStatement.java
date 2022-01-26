@@ -15,22 +15,15 @@
  * limitations under the License.
  */
 
-package org.apache.shardingsphere.proxy.config;
+package org.apache.shardingsphere.sql.parser.sql.dialect.statement.mysql.tcl;
 
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
-import org.apache.shardingsphere.infra.config.schema.impl.DataSourceGeneratedSchemaConfiguration;
-
-import java.util.Map;
+import lombok.ToString;
+import org.apache.shardingsphere.sql.parser.sql.common.statement.tcl.UnlockStatement;
+import org.apache.shardingsphere.sql.parser.sql.dialect.statement.mysql.MySQLStatement;
 
 /**
- * Proxy configuration.
+ * MySQL unlock statement.
  */
-@RequiredArgsConstructor
-@Getter
-public final class ProxyConfiguration {
-    
-    private final Map<String, DataSourceGeneratedSchemaConfiguration> schemaConfigurations;
-    
-    private final ProxyGlobalConfiguration globalConfiguration;
+@ToString
+public final class MySQLUnlockStatement extends UnlockStatement implements MySQLStatement {
 }

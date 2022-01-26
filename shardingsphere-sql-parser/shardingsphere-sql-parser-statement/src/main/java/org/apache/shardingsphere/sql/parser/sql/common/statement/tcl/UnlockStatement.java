@@ -15,22 +15,12 @@
  * limitations under the License.
  */
 
-package org.apache.shardingsphere.proxy.config;
+package org.apache.shardingsphere.sql.parser.sql.common.statement.tcl;
 
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
-import org.apache.shardingsphere.infra.config.schema.impl.DataSourceGeneratedSchemaConfiguration;
-
-import java.util.Map;
+import org.apache.shardingsphere.sql.parser.sql.common.statement.AbstractSQLStatement;
 
 /**
- * Proxy configuration.
+ * Unlock statement.
  */
-@RequiredArgsConstructor
-@Getter
-public final class ProxyConfiguration {
-    
-    private final Map<String, DataSourceGeneratedSchemaConfiguration> schemaConfigurations;
-    
-    private final ProxyGlobalConfiguration globalConfiguration;
+public abstract class UnlockStatement extends AbstractSQLStatement implements TCLStatement {
 }
