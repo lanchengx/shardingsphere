@@ -20,12 +20,12 @@ import org.apache.shardingsphere.distsql.parser.operation.DistSQLOperationSuppli
 import org.apache.shardingsphere.distsql.parser.operation.DistSQLOperationTypeEnum;
 
 /**
- * Drop privilege supplier.
+ * Create privilege supplier.
  */
-public interface DropOperationSupplier extends DistSQLOperationSupplier {
+public interface CreateOperationSupplier extends DistSQLOperationSupplier {
     
     @Override
     default DistSQLOperationTypeEnum getOperationType() {
-        return DistSQLOperationTypeEnum.DROP;
+        return DistSQLOperationTypeEnum.CREATE;
     }
 }

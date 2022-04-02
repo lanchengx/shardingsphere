@@ -14,18 +14,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.shardingsphere.distsql.parser.operation.impl;
+package org.apache.shardingsphere.distsql.parser.subject;
 
-import org.apache.shardingsphere.distsql.parser.operation.DistSQLOperationSupplier;
-import org.apache.shardingsphere.distsql.parser.operation.DistSQLOperationTypeEnum;
+import java.util.Collection;
+import java.util.Collections;
 
 /**
- * Drop privilege supplier.
+ * Dist SQL subject available.
  */
-public interface DropOperationSupplier extends DistSQLOperationSupplier {
+public interface DistSQLSubjectSupplier {
     
-    @Override
-    default DistSQLOperationTypeEnum getOperationType() {
-        return DistSQLOperationTypeEnum.DROP;
+    /**
+     * Get subject type.
+     * 
+     * @return subject type
+     */
+    DistSQLSubjectTypeEnum getSubjectType();
+    
+    /**
+     * Get subject names.
+     * @return subject names
+     */
+    default Collection<String> getSubjectNames() {
+        return Collections.emptyList();
     }
 }

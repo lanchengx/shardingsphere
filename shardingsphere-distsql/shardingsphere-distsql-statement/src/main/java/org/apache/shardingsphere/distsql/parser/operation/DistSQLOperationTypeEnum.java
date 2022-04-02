@@ -14,18 +14,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.shardingsphere.distsql.parser.operation.impl;
+package org.apache.shardingsphere.distsql.parser.operation;
 
-import org.apache.shardingsphere.distsql.parser.operation.DistSQLOperationSupplier;
-import org.apache.shardingsphere.distsql.parser.operation.DistSQLOperationTypeEnum;
-
-/**
- * Drop privilege supplier.
- */
-public interface DropOperationSupplier extends DistSQLOperationSupplier {
+public enum DistSQLOperationTypeEnum {
     
-    @Override
-    default DistSQLOperationTypeEnum getOperationType() {
-        return DistSQLOperationTypeEnum.DROP;
+    RAL,
+    ADD,
+    CREATE,
+    ALTER,
+    DROP,
+    SHOW;
+    
+    /**
+     * Returns the privilege type of the specified variable name.
+     *
+     * @param privilegeTypeName privilege type name
+     * @return statement type constant
+     */
+    public static DistSQLOperationTypeEnum getValueOf(final String privilegeTypeName) {
+        try {
+            return valueOf(privilegeTypeName.toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            throw new UnsupportedOperationException(String.format("Unsupported privilege type `%s`", privilegeTypeName));
+        }
     }
 }
