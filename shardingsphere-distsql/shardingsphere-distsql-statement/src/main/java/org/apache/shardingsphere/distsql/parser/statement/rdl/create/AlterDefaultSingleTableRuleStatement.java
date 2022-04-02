@@ -19,6 +19,7 @@ package org.apache.shardingsphere.distsql.parser.statement.rdl.create;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import org.apache.shardingsphere.distsql.parser.subject.impl.SingleTableSubjectSupplier;
 import org.apache.shardingsphere.distsql.parser.statement.rdl.alter.AlterRuleStatement;
 
 /**
@@ -26,7 +27,7 @@ import org.apache.shardingsphere.distsql.parser.statement.rdl.alter.AlterRuleSta
  */
 @RequiredArgsConstructor
 @Getter
-public final class AlterDefaultSingleTableRuleStatement extends AlterRuleStatement {
+public final class AlterDefaultSingleTableRuleStatement extends AlterRuleStatement implements SingleTableSubjectSupplier {
     
     private final String defaultResource;
 }
