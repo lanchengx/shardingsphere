@@ -33,6 +33,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.shardingsphere.infra.instance.definition.InstanceDefinition;
 import org.apache.shardingsphere.mode.repository.cluster.ClusterPersistRepositoryConfiguration;
 import org.apache.shardingsphere.mode.repository.cluster.etcd.props.EtcdProperties;
 import org.apache.shardingsphere.mode.repository.cluster.etcd.props.EtcdPropertyKey;
@@ -65,8 +66,10 @@ public final class EtcdRepository implements ClusterPersistRepository {
     @Override
     public void init(final ClusterPersistRepositoryConfiguration config) {
         etcdProperties = new EtcdProperties(props);
-        client = Client.builder().endpoints(
-                Util.toURIs(Splitter.on(",").trimResults().splitToList(config.getServerLists()))).namespace(ByteSequence.from(config.getNamespace(), StandardCharsets.UTF_8)).build();
+        client = Client.builder().endpoints(Util.toURIs(Splitter.on(",").trimResults().splitToList(config.getServerLists())))
+                .namespace(ByteSequence.from(config.getNamespace(), StandardCharsets.UTF_8))
+                .maxInboundMessageSize((int) 32e9)
+                .build();
     }
     
     @SneakyThrows({InterruptedException.class, ExecutionException.class})
@@ -104,7 +107,12 @@ public final class EtcdRepository implements ClusterPersistRepository {
         client.getLeaseClient().keepAlive(leaseId, Observers.observer(response -> { }));
         client.getKVClient().put(ByteSequence.from(key, StandardCharsets.UTF_8), ByteSequence.from(value, StandardCharsets.UTF_8), PutOption.newBuilder().withLeaseId(leaseId).build()).get();
     }
-
+    
+    @Override
+    public String getSequentialId(final String key, final String value) {
+        return null;
+    }
+    
     @Override
     public void delete(final String key) {
         client.getKVClient().delete(ByteSequence.from(key, StandardCharsets.UTF_8), DeleteOption.newBuilder().withPrefix(ByteSequence.from(key, StandardCharsets.UTF_8)).build());
@@ -163,7 +171,11 @@ public final class EtcdRepository implements ClusterPersistRepository {
             log.error("EtcdRepository releaseLock error, key:{}", key, ex);
         }
     }
-
+    
+    @Override
+    public void watchSessionConnection(final InstanceDefinition instanceDefinition) {
+    }
+    
     @Override
     public void close() {
         client.close();

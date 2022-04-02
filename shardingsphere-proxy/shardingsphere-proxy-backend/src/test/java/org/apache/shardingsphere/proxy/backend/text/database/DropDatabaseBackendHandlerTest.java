@@ -19,11 +19,11 @@ package org.apache.shardingsphere.proxy.backend.text.database;
 
 import org.apache.shardingsphere.mode.manager.ContextManager;
 import org.apache.shardingsphere.mode.metadata.MetaDataContexts;
-import org.apache.shardingsphere.proxy.backend.communication.jdbc.connection.JDBCConnectionSession;
 import org.apache.shardingsphere.proxy.backend.context.ProxyContext;
-import org.apache.shardingsphere.proxy.backend.exception.DBDropExistsException;
+import org.apache.shardingsphere.proxy.backend.exception.DBDropNotExistsException;
 import org.apache.shardingsphere.proxy.backend.response.header.ResponseHeader;
 import org.apache.shardingsphere.proxy.backend.response.header.update.UpdateResponseHeader;
+import org.apache.shardingsphere.proxy.backend.session.ConnectionSession;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.DropDatabaseStatement;
 import org.junit.Before;
 import org.junit.Test;
@@ -33,9 +33,11 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
 import java.util.Arrays;
+import java.util.Collections;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -46,7 +48,7 @@ import static org.mockito.Mockito.when;
 public final class DropDatabaseBackendHandlerTest {
     
     @Mock
-    private JDBCConnectionSession connectionSession;
+    private ConnectionSession connectionSession;
     
     @Mock
     private DropDatabaseStatement sqlStatement;
@@ -63,14 +65,23 @@ public final class DropDatabaseBackendHandlerTest {
         ProxyContext.getInstance().init(contextManager);
         handler = new DropDatabaseBackendHandler(sqlStatement, connectionSession);
         when(metaDataContexts.getAllSchemaNames()).thenReturn(Arrays.asList("test_db", "other_db"));
+        when(metaDataContexts.getGlobalRuleMetaData().getRules()).thenReturn(Collections.emptyList());
+        when(metaDataContexts.getMetaData(any()).getRuleMetaData().getRules()).thenReturn(Collections.emptyList());
     }
     
-    @Test(expected = DBDropExistsException.class)
+    @Test(expected = DBDropNotExistsException.class)
     public void assertExecuteDropNotExistDatabase() {
         when(sqlStatement.getDatabaseName()).thenReturn("test_not_exist_db");
         handler.execute();
     }
-
+    
+    @Test
+    public void assertExecuteDropNotExistDatabaseWithIfExists() {
+        when(sqlStatement.getDatabaseName()).thenReturn("test_not_exist_db");
+        when(sqlStatement.isContainsExistClause()).thenReturn(true);
+        handler.execute();
+    }
+    
     @Test
     public void assertExecuteDropWithoutCurrentDatabase() {
         when(sqlStatement.getDatabaseName()).thenReturn("test_db");
@@ -79,7 +90,7 @@ public final class DropDatabaseBackendHandlerTest {
         assertNotNull(responseHeader);
         assertTrue(responseHeader instanceof UpdateResponseHeader);
     }
-
+    
     @Test
     public void assertExecuteDropCurrentDatabase() {
         when(connectionSession.getSchemaName()).thenReturn("test_db");
@@ -89,7 +100,7 @@ public final class DropDatabaseBackendHandlerTest {
         assertNotNull(responseHeader);
         assertTrue(responseHeader instanceof UpdateResponseHeader);
     }
-
+    
     @Test
     public void assertExecuteDropOtherDatabase() {
         when(connectionSession.getSchemaName()).thenReturn("test_db");

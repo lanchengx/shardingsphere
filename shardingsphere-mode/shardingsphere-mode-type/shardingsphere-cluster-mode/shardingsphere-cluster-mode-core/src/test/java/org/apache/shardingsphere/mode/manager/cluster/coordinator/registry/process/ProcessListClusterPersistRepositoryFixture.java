@@ -17,6 +17,7 @@
 
 package org.apache.shardingsphere.mode.manager.cluster.coordinator.registry.process;
 
+import org.apache.shardingsphere.infra.instance.definition.InstanceDefinition;
 import org.apache.shardingsphere.mode.repository.cluster.ClusterPersistRepositoryConfiguration;
 import org.apache.shardingsphere.mode.repository.cluster.listener.DataChangedEventListener;
 import org.apache.shardingsphere.mode.repository.cluster.ClusterPersistRepository;
@@ -56,6 +57,11 @@ public final class ProcessListClusterPersistRepositoryFixture implements Cluster
     }
     
     @Override
+    public String getSequentialId(final String key, final String value) {
+        return null;
+    }
+    
+    @Override
     public void delete(final String key) {
         REGISTRY_DATA.remove(key);
     }
@@ -71,6 +77,10 @@ public final class ProcessListClusterPersistRepositoryFixture implements Cluster
     
     @Override
     public void releaseLock(final String key) {
+    }
+    
+    @Override
+    public void watchSessionConnection(final InstanceDefinition instanceDefinition) {
     }
     
     @Override

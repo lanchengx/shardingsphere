@@ -1,7 +1,7 @@
 +++
-pre = "<b>6.5. </b>"
-title = "Proxy"
-weight = 5
+pre = "<b>6.6. </b>"
+title = "代理端"
+weight = 6
 chapter = true
 +++
 
@@ -9,7 +9,7 @@ chapter = true
 
 | *SPI 名称*                       | *详细说明*                                      |
 | ------------------------------- | ---------------------------------------------- |
-| DatabaseProtocolFrontendEngine  | 用于ShardingSphere-Proxy解析与适配访问数据库的协议 |
+| DatabaseProtocolFrontendEngine  | 用于 ShardingSphere-Proxy 解析与适配访问数据库的协议 |
 
 | *已知实现类*              | *详细说明*                                      |
 | ------------------------ | ---------------------------------------------- |

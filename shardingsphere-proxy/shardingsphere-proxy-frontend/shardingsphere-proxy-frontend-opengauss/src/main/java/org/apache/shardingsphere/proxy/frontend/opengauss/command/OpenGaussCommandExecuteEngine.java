@@ -24,8 +24,9 @@ import org.apache.shardingsphere.db.protocol.packet.CommandPacket;
 import org.apache.shardingsphere.db.protocol.packet.CommandPacketType;
 import org.apache.shardingsphere.db.protocol.packet.DatabasePacket;
 import org.apache.shardingsphere.db.protocol.payload.PacketPayload;
+import org.apache.shardingsphere.db.protocol.postgresql.packet.command.PostgreSQLCommandPacket;
 import org.apache.shardingsphere.db.protocol.postgresql.payload.PostgreSQLPacketPayload;
-import org.apache.shardingsphere.proxy.backend.communication.jdbc.connection.JDBCConnectionSession;
+import org.apache.shardingsphere.proxy.backend.communication.BackendConnection;
 import org.apache.shardingsphere.proxy.backend.session.ConnectionSession;
 import org.apache.shardingsphere.proxy.frontend.command.CommandExecuteEngine;
 import org.apache.shardingsphere.proxy.frontend.command.executor.CommandExecutor;
@@ -47,24 +48,18 @@ public final class OpenGaussCommandExecuteEngine implements CommandExecuteEngine
     
     @Override
     public CommandPacketType getCommandPacketType(final PacketPayload payload) {
-        return OpenGaussCommandPacketType.valueOf(((PostgreSQLPacketPayload) payload).readInt1());
+        return OpenGaussCommandPacketType.valueOf(payload.getByteBuf().getByte(payload.getByteBuf().readerIndex()));
     }
     
     @Override
     public CommandPacket getCommandPacket(final PacketPayload payload, final CommandPacketType type, final ConnectionSession connectionSession) {
-        return OpenGaussCommandPacketFactory.newInstance(type, (PostgreSQLPacketPayload) payload, connectionSession.getConnectionId());
+        return OpenGaussCommandPacketFactory.newInstance(type, (PostgreSQLPacketPayload) payload);
     }
     
     @Override
-    public CommandExecutor getCommandExecutor(final CommandPacketType type, final CommandPacket packet, final JDBCConnectionSession connectionSession) throws SQLException {
+    public CommandExecutor getCommandExecutor(final CommandPacketType type, final CommandPacket packet, final ConnectionSession connectionSession) throws SQLException {
         PostgreSQLConnectionContext connectionContext = PostgreSQLConnectionContextRegistry.getInstance().get(connectionSession.getConnectionId());
-        return OpenGaussCommandExecutorFactory.newInstance(type, packet, connectionSession, connectionContext);
-    }
-    
-    @Override
-    public DatabasePacket<?> getErrorPacket(final Exception cause, final ConnectionSession connectionSession) {
-        PostgreSQLConnectionContextRegistry.getInstance().get(connectionSession.getConnectionId()).getPendingExecutors().clear();
-        return OpenGaussErrorPacketFactory.newInstance(cause);
+        return OpenGaussCommandExecutorFactory.newInstance(type, (PostgreSQLCommandPacket) packet, connectionSession, connectionContext);
     }
     
     @Override
@@ -78,8 +73,8 @@ public final class OpenGaussCommandExecuteEngine implements CommandExecuteEngine
     }
     
     @Override
-    public boolean writeQueryData(final ChannelHandlerContext context,
-                                  final JDBCConnectionSession connectionSession, final QueryCommandExecutor queryCommandExecutor, final int headerPackagesCount) throws SQLException {
-        return postgreSQLCommandExecuteEngine.writeQueryData(context, connectionSession, queryCommandExecutor, headerPackagesCount);
+    public void writeQueryData(final ChannelHandlerContext context,
+                               final BackendConnection backendConnection, final QueryCommandExecutor queryCommandExecutor, final int headerPackagesCount) throws SQLException {
+        postgreSQLCommandExecuteEngine.writeQueryData(context, backendConnection, queryCommandExecutor, headerPackagesCount);
     }
 }

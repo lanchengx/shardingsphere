@@ -17,7 +17,7 @@
 
 package org.apache.shardingsphere.example.proxy.distsql.feature;
 
-import org.apache.shardingsphere.example.proxy.distsql.feature.discovery.DBDiscoveryExecutor;
+import org.apache.shardingsphere.example.proxy.distsql.DistSQLExecutor;
 import org.apache.shardingsphere.example.proxy.distsql.feature.encrypt.EncryptExecutor;
 import org.apache.shardingsphere.example.proxy.distsql.feature.readwritesplitting.ReadWriteSplittingExecutor;
 import org.apache.shardingsphere.example.proxy.distsql.feature.resource.ResourceExecutor;
@@ -28,35 +28,30 @@ public enum FeatureType {
     
     RESOURCE {
         @Override
-        public FeatureExecutor getExecutor() {
+        public DistSQLExecutor getExecutor() {
             return new ResourceExecutor();
         }
     }, SHADOW {
         @Override
-        public FeatureExecutor getExecutor() {
+        public DistSQLExecutor getExecutor() {
             return new ShadowExecutor();
         }
     }, ENCRYPT {
         @Override
-        public FeatureExecutor getExecutor() {
+        public DistSQLExecutor getExecutor() {
             return new EncryptExecutor();
         }
     }, SHARDING {
         @Override
-        public FeatureExecutor getExecutor() {
+        public DistSQLExecutor getExecutor() {
             return new ShardingExecutor();
-        }
-    }, DB_DISCOVERY {
-        @Override
-        public FeatureExecutor getExecutor() {
-            return new DBDiscoveryExecutor();
         }
     }, READWRITE_SPLITTING {
         @Override
-        public FeatureExecutor getExecutor() {
+        public DistSQLExecutor getExecutor() {
             return new ReadWriteSplittingExecutor();
         }
     };
     
-    public abstract FeatureExecutor getExecutor();
+    public abstract DistSQLExecutor getExecutor();
 }

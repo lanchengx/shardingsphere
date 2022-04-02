@@ -27,10 +27,10 @@ import org.apache.shardingsphere.infra.distsql.exception.resource.ResourceInUsed
 import org.apache.shardingsphere.infra.rule.ShardingSphereRule;
 import org.apache.shardingsphere.infra.rule.identifier.type.DataNodeContainedRule;
 import org.apache.shardingsphere.infra.rule.identifier.type.DataSourceContainedRule;
-import org.apache.shardingsphere.proxy.backend.communication.jdbc.connection.JDBCConnectionSession;
 import org.apache.shardingsphere.proxy.backend.context.ProxyContext;
 import org.apache.shardingsphere.proxy.backend.response.header.ResponseHeader;
 import org.apache.shardingsphere.proxy.backend.response.header.update.UpdateResponseHeader;
+import org.apache.shardingsphere.proxy.backend.session.ConnectionSession;
 import org.apache.shardingsphere.proxy.backend.text.SchemaRequiredBackendHandler;
 import org.apache.shardingsphere.singletable.rule.SingleTableRule;
 
@@ -46,22 +46,23 @@ import java.util.stream.Collectors;
  */
 public final class DropResourceBackendHandler extends SchemaRequiredBackendHandler<DropResourceStatement> {
     
-    public DropResourceBackendHandler(final DropResourceStatement sqlStatement, final JDBCConnectionSession connectionSession) {
+    public DropResourceBackendHandler(final DropResourceStatement sqlStatement, final ConnectionSession connectionSession) {
         super(sqlStatement, connectionSession);
     }
     
     @Override
     public ResponseHeader execute(final String schemaName, final DropResourceStatement sqlStatement) throws ResourceDefinitionViolationException {
         Collection<String> toBeDroppedResourceNames = sqlStatement.getNames();
-        check(schemaName, toBeDroppedResourceNames, sqlStatement.isIgnoreSingleTables());
+        check(schemaName, toBeDroppedResourceNames, sqlStatement.isIgnoreSingleTables(), sqlStatement.isContainsExistClause());
         ProxyContext.getInstance().getContextManager().dropResource(schemaName, toBeDroppedResourceNames);
-        ProxyContext.getInstance().getContextManager().getMetaDataContexts().getMetaDataPersistService().ifPresent(
-            optional -> optional.getDataSourceService().drop(schemaName, toBeDroppedResourceNames));
         return new UpdateResponseHeader(sqlStatement);
     }
     
-    private void check(final String schemaName, final Collection<String> toBeDroppedResourceNames, final boolean ignoreSingleTables) throws RequiredResourceMissedException, ResourceInUsedException {
-        checkResourceNameExisted(schemaName, toBeDroppedResourceNames);
+    private void check(final String schemaName, final Collection<String> toBeDroppedResourceNames, 
+                       final boolean ignoreSingleTables, final boolean allowNotExist) throws RequiredResourceMissedException, ResourceInUsedException {
+        if (!allowNotExist) {
+            checkResourceNameExisted(schemaName, toBeDroppedResourceNames);
+        }
         checkResourceNameNotInUse(schemaName, toBeDroppedResourceNames, ignoreSingleTables);
     }
     
@@ -102,11 +103,11 @@ public final class DropResourceBackendHandler extends SchemaRequiredBackendHandl
         for (ShardingSphereRule each : ProxyContext.getInstance().getMetaData(schemaName).getRuleMetaData().getRules()) {
             if (each instanceof DataSourceContainedRule) {
                 Set<String> inUsedResourceNames = getInUsedResourceNames((DataSourceContainedRule) each);
-                inUsedResourceNames.stream().forEach(eachResource -> result.put(eachResource, each.getType()));
+                inUsedResourceNames.forEach(eachResource -> result.put(eachResource, each.getType()));
             }
             if (each instanceof DataNodeContainedRule) {
                 Set<String> inUsedResourceNames = getInUsedResourceNames((DataNodeContainedRule) each);
-                inUsedResourceNames.stream().forEach(eachResource -> result.put(eachResource, each.getType()));
+                inUsedResourceNames.forEach(eachResource -> result.put(eachResource, each.getType()));
             }
         }
         return result;

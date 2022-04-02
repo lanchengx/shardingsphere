@@ -17,7 +17,7 @@
 
 grammar DDLStatement;
 
-import Symbol, Keyword, OpenGaussKeyword, Literals, BaseRule, DMLStatement;
+import DMLStatement;
 
 createTable
     : CREATE createTableSpecification TABLE notExistClause? tableName
@@ -932,7 +932,7 @@ alterGroupClauses
     ;
 
 alterLanguage
-    : ALTER PROCEDURAL? LANGUAGE (colId RENAME TO colId | OWNER TO (ignoredIdentifier | CURRENT_USER | SESSION_USER))
+    : ALTER PROCEDURAL? LANGUAGE colId (RENAME TO colId | OWNER TO (ignoredIdentifier | CURRENT_USER | SESSION_USER))
     ;
 
 alterLargeObject

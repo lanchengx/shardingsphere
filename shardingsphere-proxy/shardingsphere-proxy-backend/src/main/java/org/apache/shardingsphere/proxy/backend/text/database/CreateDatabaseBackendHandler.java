@@ -39,13 +39,11 @@ public final class CreateDatabaseBackendHandler implements TextProtocolBackendHa
     public ResponseHeader execute() throws SQLException {
         check(sqlStatement);
         ProxyContext.getInstance().getContextManager().addSchema(sqlStatement.getDatabaseName());
-        ProxyContext.getInstance().getContextManager().getMetaDataContexts().getMetaDataPersistService().ifPresent(
-            optional -> optional.getSchemaMetaDataService().persist(sqlStatement.getDatabaseName(), null));
         return new UpdateResponseHeader(sqlStatement);
     }
     
     private void check(final CreateDatabaseStatement sqlStatement) {
-        if (ProxyContext.getInstance().getAllSchemaNames().contains(sqlStatement.getDatabaseName())) {
+        if (!sqlStatement.isContainsNotExistClause() && ProxyContext.getInstance().getAllSchemaNames().contains(sqlStatement.getDatabaseName())) {
             throw new DBCreateExistsException(sqlStatement.getDatabaseName());
         }
     }

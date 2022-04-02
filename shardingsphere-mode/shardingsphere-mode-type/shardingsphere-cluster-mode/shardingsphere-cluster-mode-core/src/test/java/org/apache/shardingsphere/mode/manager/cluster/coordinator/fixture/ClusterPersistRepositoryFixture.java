@@ -17,6 +17,7 @@
 
 package org.apache.shardingsphere.mode.manager.cluster.coordinator.fixture;
 
+import org.apache.shardingsphere.infra.instance.definition.InstanceDefinition;
 import org.apache.shardingsphere.mode.repository.cluster.ClusterPersistRepository;
 import org.apache.shardingsphere.mode.repository.cluster.ClusterPersistRepositoryConfiguration;
 import org.apache.shardingsphere.mode.repository.cluster.listener.DataChangedEventListener;
@@ -50,6 +51,11 @@ public final class ClusterPersistRepositoryFixture implements ClusterPersistRepo
     }
     
     @Override
+    public String getSequentialId(final String key, final String value) {
+        return null;
+    }
+    
+    @Override
     public void delete(final String key) {
     }
     
@@ -64,6 +70,10 @@ public final class ClusterPersistRepositoryFixture implements ClusterPersistRepo
     
     @Override
     public void releaseLock(final String key) {
+    }
+    
+    @Override
+    public void watchSessionConnection(final InstanceDefinition instanceDefinition) {
     }
     
     @Override

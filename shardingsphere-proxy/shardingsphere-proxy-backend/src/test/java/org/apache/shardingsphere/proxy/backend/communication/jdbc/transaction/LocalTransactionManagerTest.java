@@ -21,7 +21,9 @@ package org.apache.shardingsphere.proxy.backend.communication.jdbc.transaction;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 import lombok.SneakyThrows;
-import org.apache.shardingsphere.proxy.backend.communication.jdbc.connection.JDBCConnectionSession;
+import org.apache.shardingsphere.proxy.backend.communication.jdbc.connection.JDBCBackendConnection;
+import org.apache.shardingsphere.proxy.backend.session.ConnectionSession;
+import org.apache.shardingsphere.proxy.backend.session.transaction.TransactionStatus;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -40,7 +42,10 @@ import static org.mockito.Mockito.when;
 public final class LocalTransactionManagerTest {
     
     @Mock
-    private JDBCConnectionSession connectionSession;
+    private ConnectionSession connectionSession;
+    
+    @Mock
+    private JDBCBackendConnection backendConnection;
     
     @Mock
     private TransactionStatus transactionStatus;
@@ -51,11 +56,12 @@ public final class LocalTransactionManagerTest {
     private LocalTransactionManager localTransactionManager;
     
     @Before
-    public void setUp() throws SQLException {
+    public void setUp() {
         when(connectionSession.getTransactionStatus()).thenReturn(transactionStatus);
-        when(connectionSession.getCachedConnections()).thenReturn(setCachedConnections());
+        when(backendConnection.getConnectionSession()).thenReturn(connectionSession);
+        when(backendConnection.getCachedConnections()).thenReturn(setCachedConnections());
         when(transactionStatus.isInTransaction()).thenReturn(true);
-        localTransactionManager = new LocalTransactionManager(connectionSession);
+        localTransactionManager = new LocalTransactionManager(backendConnection);
     }
     
     private Multimap<String, Connection> setCachedConnections() {
@@ -69,14 +75,14 @@ public final class LocalTransactionManagerTest {
     @Test
     public void assertBegin() {
         localTransactionManager.begin();
-        verify(connectionSession).getConnectionPostProcessors();
+        verify(backendConnection).getConnectionPostProcessors();
     }
     
     @Test
     @SneakyThrows(SQLException.class)
     public void assertCommit() {
         localTransactionManager.commit();
-        verify(transactionStatus).isInTransaction();
+        verify(transactionStatus).isRollbackOnly();
         verify(connection).commit();
     }
     

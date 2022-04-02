@@ -17,7 +17,6 @@
 
 package org.apache.shardingsphere.proxy.backend.text.distsql;
 
-import com.mchange.v1.db.sql.UnsupportedTypeException;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.apache.shardingsphere.distsql.parser.statement.DistSQLStatement;
@@ -25,7 +24,7 @@ import org.apache.shardingsphere.distsql.parser.statement.ral.RALStatement;
 import org.apache.shardingsphere.distsql.parser.statement.rdl.RDLStatement;
 import org.apache.shardingsphere.distsql.parser.statement.rql.RQLStatement;
 import org.apache.shardingsphere.infra.database.type.DatabaseType;
-import org.apache.shardingsphere.proxy.backend.communication.jdbc.connection.JDBCConnectionSession;
+import org.apache.shardingsphere.proxy.backend.session.ConnectionSession;
 import org.apache.shardingsphere.proxy.backend.text.TextProtocolBackendHandler;
 import org.apache.shardingsphere.proxy.backend.text.distsql.ral.RALBackendHandlerFactory;
 import org.apache.shardingsphere.proxy.backend.text.distsql.rdl.RDLBackendHandlerFactory;
@@ -48,7 +47,7 @@ public final class DistSQLBackendHandlerFactory {
      * @return text protocol backend handler
      * @throws SQLException SQL exception
      */
-    public static TextProtocolBackendHandler newInstance(final DatabaseType databaseType, final DistSQLStatement sqlStatement, final JDBCConnectionSession connectionSession) throws SQLException {
+    public static TextProtocolBackendHandler newInstance(final DatabaseType databaseType, final DistSQLStatement sqlStatement, final ConnectionSession connectionSession) throws SQLException {
         if (sqlStatement instanceof RQLStatement) {
             return RQLBackendHandlerFactory.newInstance((RQLStatement) sqlStatement, connectionSession);
         }
@@ -58,6 +57,6 @@ public final class DistSQLBackendHandlerFactory {
         if (sqlStatement instanceof RALStatement) {
             return RALBackendHandlerFactory.newInstance(databaseType, (RALStatement) sqlStatement, connectionSession);
         }
-        throw new UnsupportedTypeException(sqlStatement.getClass().getCanonicalName());
+        throw new UnsupportedOperationException(sqlStatement.getClass().getCanonicalName());
     }
 }

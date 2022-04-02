@@ -17,7 +17,7 @@
 
 package org.apache.shardingsphere.proxy.backend.text;
 
-import org.apache.shardingsphere.infra.config.properties.ConfigurationProperties;
+import org.apache.shardingsphere.infra.config.props.ConfigurationProperties;
 import org.apache.shardingsphere.infra.database.type.DatabaseType;
 import org.apache.shardingsphere.infra.database.type.DatabaseTypeRegistry;
 import org.apache.shardingsphere.infra.metadata.ShardingSphereMetaData;
@@ -26,16 +26,17 @@ import org.apache.shardingsphere.mode.manager.ContextManager;
 import org.apache.shardingsphere.mode.metadata.MetaDataContexts;
 import org.apache.shardingsphere.parser.config.SQLParserRuleConfiguration;
 import org.apache.shardingsphere.parser.rule.SQLParserRule;
-import org.apache.shardingsphere.proxy.backend.communication.jdbc.connection.JDBCConnectionSession;
+import org.apache.shardingsphere.proxy.backend.communication.jdbc.connection.JDBCBackendConnection;
 import org.apache.shardingsphere.proxy.backend.context.ProxyContext;
+import org.apache.shardingsphere.proxy.backend.session.ConnectionSession;
 import org.apache.shardingsphere.proxy.backend.text.admin.DatabaseAdminQueryBackendHandler;
 import org.apache.shardingsphere.proxy.backend.text.admin.DatabaseAdminUpdateBackendHandler;
 import org.apache.shardingsphere.proxy.backend.text.data.impl.BroadcastDatabaseBackendHandler;
 import org.apache.shardingsphere.proxy.backend.text.data.impl.SchemaAssignedDatabaseBackendHandler;
 import org.apache.shardingsphere.proxy.backend.text.data.impl.UnicastDatabaseBackendHandler;
+import org.apache.shardingsphere.proxy.backend.text.distsql.ral.QueryableRALBackendHandler;
 import org.apache.shardingsphere.proxy.backend.text.distsql.ral.common.HintDistSQLBackendHandler;
-import org.apache.shardingsphere.proxy.backend.text.distsql.ral.common.SetDistSQLBackendHandler;
-import org.apache.shardingsphere.proxy.backend.text.distsql.ral.common.ShowDistSQLBackendHandler;
+import org.apache.shardingsphere.proxy.backend.text.distsql.ral.common.updatable.SetVariableHandler;
 import org.apache.shardingsphere.proxy.backend.text.skip.SkipBackendHandler;
 import org.apache.shardingsphere.proxy.backend.text.transaction.TransactionAutoCommitHandler;
 import org.apache.shardingsphere.proxy.backend.text.transaction.TransactionBackendHandler;
@@ -68,12 +69,17 @@ public final class TextProtocolBackendHandlerFactoryTest {
     private final DatabaseType databaseType = DatabaseTypeRegistry.getActualDatabaseType("MySQL");
     
     @Mock(answer = Answers.RETURNS_DEEP_STUBS)
-    private JDBCConnectionSession connectionSession;
+    private ConnectionSession connectionSession;
+    
+    @Mock
+    private JDBCBackendConnection backendConnection;
     
     @Before
     public void setUp() {
         when(connectionSession.getTransactionStatus().getTransactionType()).thenReturn(TransactionType.LOCAL);
         when(connectionSession.getDefaultSchemaName()).thenReturn("schema");
+        when(connectionSession.getBackendConnection()).thenReturn(backendConnection);
+        when(backendConnection.getConnectionSession()).thenReturn(connectionSession);
         MetaDataContexts metaDataContexts = mock(MetaDataContexts.class, RETURNS_DEEP_STUBS);
         mockGlobalRuleMetaData(metaDataContexts);
         ShardingSphereMetaData shardingSphereMetaData = mockShardingSphereMetaData();
@@ -111,126 +117,139 @@ public final class TextProtocolBackendHandlerFactoryTest {
     @Test
     public void assertNewInstanceWithCommonDistSQL() throws SQLException {
         String sql = "set variable transaction_type=LOCAL";
-        TextProtocolBackendHandler actual = TextProtocolBackendHandlerFactory.newInstance(databaseType, sql, connectionSession);
-        assertThat(actual, instanceOf(SetDistSQLBackendHandler.class));
+        TextProtocolBackendHandler actual = TextProtocolBackendHandlerFactory.newInstance(databaseType, sql, Optional::empty, connectionSession);
+        assertThat(actual, instanceOf(SetVariableHandler.class));
         sql = "show variable transaction_type";
-        actual = TextProtocolBackendHandlerFactory.newInstance(databaseType, sql, connectionSession);
-        assertThat(actual, instanceOf(ShowDistSQLBackendHandler.class));
+        actual = TextProtocolBackendHandlerFactory.newInstance(databaseType, sql, Optional::empty, connectionSession);
+        assertThat(actual, instanceOf(QueryableRALBackendHandler.class));
         sql = "show all variables";
-        actual = TextProtocolBackendHandlerFactory.newInstance(databaseType, sql, connectionSession);
-        assertThat(actual, instanceOf(ShowDistSQLBackendHandler.class));
+        actual = TextProtocolBackendHandlerFactory.newInstance(databaseType, sql, Optional::empty, connectionSession);
+        assertThat(actual, instanceOf(QueryableRALBackendHandler.class));
         sql = "set sharding hint database_value=1";
-        actual = TextProtocolBackendHandlerFactory.newInstance(databaseType, sql, connectionSession);
+        actual = TextProtocolBackendHandlerFactory.newInstance(databaseType, sql, Optional::empty, connectionSession);
         assertThat(actual, instanceOf(HintDistSQLBackendHandler.class));
     }
     
     @Test
     public void assertNewInstanceWithBegin() throws SQLException {
         String sql = "BEGIN";
-        TextProtocolBackendHandler actual = TextProtocolBackendHandlerFactory.newInstance(databaseType, sql, connectionSession);
+        TextProtocolBackendHandler actual = TextProtocolBackendHandlerFactory.newInstance(databaseType, sql, Optional::empty, connectionSession);
         assertThat(actual, instanceOf(TransactionBackendHandler.class));
     }
     
     @Test
     public void assertNewInstanceWithStartTransaction() throws SQLException {
         String sql = "START TRANSACTION";
-        TextProtocolBackendHandler actual = TextProtocolBackendHandlerFactory.newInstance(databaseType, sql, connectionSession);
+        TextProtocolBackendHandler actual = TextProtocolBackendHandlerFactory.newInstance(databaseType, sql, Optional::empty, connectionSession);
         assertThat(actual, instanceOf(TransactionBackendHandler.class));
     }
     
     @Test
     public void assertNewInstanceWithSetAutoCommitToOff() throws SQLException {
         String sql = "SET AUTOCOMMIT=0";
-        TextProtocolBackendHandler actual = TextProtocolBackendHandlerFactory.newInstance(databaseType, sql, connectionSession);
+        TextProtocolBackendHandler actual = TextProtocolBackendHandlerFactory.newInstance(databaseType, sql, Optional::empty, connectionSession);
         assertThat(actual, instanceOf(TransactionAutoCommitHandler.class));
     }
     
     @Test
     public void assertNewInstanceWithScopeSetAutoCommitToOff() throws SQLException {
         String sql = "SET @@SESSION.AUTOCOMMIT = OFF";
-        TextProtocolBackendHandler actual = TextProtocolBackendHandlerFactory.newInstance(databaseType, sql, connectionSession);
+        TextProtocolBackendHandler actual = TextProtocolBackendHandlerFactory.newInstance(databaseType, sql, Optional::empty, connectionSession);
         assertThat(actual, instanceOf(TransactionAutoCommitHandler.class));
     }
     
     @Test
     public void assertNewInstanceWithSetAutoCommitToOn() throws SQLException {
         String sql = "SET AUTOCOMMIT=1";
-        TextProtocolBackendHandler actual = TextProtocolBackendHandlerFactory.newInstance(databaseType, sql, connectionSession);
+        TextProtocolBackendHandler actual = TextProtocolBackendHandlerFactory.newInstance(databaseType, sql, Optional::empty, connectionSession);
         assertThat(actual, instanceOf(TransactionAutoCommitHandler.class));
     }
     
     @Test
     public void assertNewInstanceWithScopeSetAutoCommitToOnForInTransaction() throws SQLException {
         String sql = "SET @@SESSION.AUTOCOMMIT = ON";
-        TextProtocolBackendHandler actual = TextProtocolBackendHandlerFactory.newInstance(databaseType, sql, connectionSession);
+        TextProtocolBackendHandler actual = TextProtocolBackendHandlerFactory.newInstance(databaseType, sql, Optional::empty, connectionSession);
         assertThat(actual, instanceOf(TransactionAutoCommitHandler.class));
     }
     
     @Test
     public void assertNewInstanceWithUse() throws SQLException {
         String sql = "use sharding_db";
-        TextProtocolBackendHandler actual = TextProtocolBackendHandlerFactory.newInstance(databaseType, sql, connectionSession);
+        TextProtocolBackendHandler actual = TextProtocolBackendHandlerFactory.newInstance(databaseType, sql, Optional::empty, connectionSession);
         assertThat(actual, instanceOf(DatabaseAdminUpdateBackendHandler.class));
     }
     
     @Test
     public void assertNewInstanceWithShowDatabase() throws SQLException {
         String sql = "show databases";
-        TextProtocolBackendHandler actual = TextProtocolBackendHandlerFactory.newInstance(databaseType, sql, connectionSession);
+        TextProtocolBackendHandler actual = TextProtocolBackendHandlerFactory.newInstance(databaseType, sql, Optional::empty, connectionSession);
         assertThat(actual, instanceOf(DatabaseAdminQueryBackendHandler.class));
     }
     
     @Test
     public void assertNewInstanceWithSet() throws SQLException {
         String sql = "set @num=1";
-        TextProtocolBackendHandler actual = TextProtocolBackendHandlerFactory.newInstance(databaseType, sql, connectionSession);
+        ProxyContext instance = ProxyContext.getInstance();
+        when(instance.getAllSchemaNames()).thenReturn(Collections.singletonList("schema"));
+        when(instance.getMetaData("schema").hasDataSource()).thenReturn(true);
+        TextProtocolBackendHandler actual = TextProtocolBackendHandlerFactory.newInstance(databaseType, sql, Optional::empty, connectionSession);
         assertThat(actual, instanceOf(BroadcastDatabaseBackendHandler.class));
+    }
+    
+    @Test
+    public void assertNewInstanceWithSetNoResource() throws SQLException {
+        String sql = "set @num=1";
+        TextProtocolBackendHandler actual = TextProtocolBackendHandlerFactory.newInstance(databaseType, sql, Optional::empty, connectionSession);
+        assertThat(actual, instanceOf(DatabaseAdminUpdateBackendHandler.class));
     }
     
     @Test
     public void assertNewInstanceWithShow() throws SQLException {
         String sql = "SHOW VARIABLES LIKE '%x%'";
-        TextProtocolBackendHandler actual = TextProtocolBackendHandlerFactory.newInstance(databaseType, sql, connectionSession);
+        TextProtocolBackendHandler actual = TextProtocolBackendHandlerFactory.newInstance(databaseType, sql, Optional::empty, connectionSession);
         assertThat(actual, instanceOf(UnicastDatabaseBackendHandler.class));
         sql = "SHOW VARIABLES WHERE Variable_name ='language'";
-        actual = TextProtocolBackendHandlerFactory.newInstance(databaseType, sql, connectionSession);
+        actual = TextProtocolBackendHandlerFactory.newInstance(databaseType, sql, Optional::empty, connectionSession);
         assertThat(actual, instanceOf(UnicastDatabaseBackendHandler.class));
         sql = "SHOW CHARACTER SET";
-        actual = TextProtocolBackendHandlerFactory.newInstance(databaseType, sql, connectionSession);
+        actual = TextProtocolBackendHandlerFactory.newInstance(databaseType, sql, Optional::empty, connectionSession);
         assertThat(actual, instanceOf(UnicastDatabaseBackendHandler.class));
         sql = "SHOW COLLATION";
-        actual = TextProtocolBackendHandlerFactory.newInstance(databaseType, sql, connectionSession);
+        actual = TextProtocolBackendHandlerFactory.newInstance(databaseType, sql, Optional::empty, connectionSession);
         assertThat(actual, instanceOf(UnicastDatabaseBackendHandler.class));
     }
     
     @Test
     public void assertNewInstanceWithQuery() throws SQLException {
         String sql = "select * from t_order limit 1";
-        TextProtocolBackendHandler actual = TextProtocolBackendHandlerFactory.newInstance(databaseType, sql, connectionSession);
+        ProxyContext instance = ProxyContext.getInstance();
+        when(instance.getAllSchemaNames()).thenReturn(Collections.singletonList("schema"));
+        when(instance.getMetaData("schema").hasDataSource()).thenReturn(true);
+        TextProtocolBackendHandler actual = TextProtocolBackendHandlerFactory.newInstance(databaseType, sql, Optional::empty, connectionSession);
         assertThat(actual, instanceOf(SchemaAssignedDatabaseBackendHandler.class));
         sql = "select * from information_schema.schemata limit 1";
-        actual = TextProtocolBackendHandlerFactory.newInstance(databaseType, sql, connectionSession);
+        actual = TextProtocolBackendHandlerFactory.newInstance(databaseType, sql, Optional::empty, connectionSession);
         assertThat(actual, instanceOf(DatabaseAdminQueryBackendHandler.class));
     }
     
     @Test
     public void assertNewInstanceWithEmptyString() throws SQLException {
         String sql = "";
-        TextProtocolBackendHandler actual = TextProtocolBackendHandlerFactory.newInstance(databaseType, sql, connectionSession);
+        TextProtocolBackendHandler actual = TextProtocolBackendHandlerFactory.newInstance(databaseType, sql, Optional::empty, connectionSession);
         assertThat(actual, instanceOf(SkipBackendHandler.class));
     }
     
     @Test(expected = SQLParsingException.class)
     public void assertNewInstanceWithErrorSQL() throws SQLException {
         String sql = "SELECT";
-        TextProtocolBackendHandler actual = TextProtocolBackendHandlerFactory.newInstance(databaseType, sql, connectionSession);
+        TextProtocolBackendHandler actual = TextProtocolBackendHandlerFactory.newInstance(databaseType, sql, Optional::empty, connectionSession);
         assertThat(actual, instanceOf(SkipBackendHandler.class));
     }
     
     @Test(expected = SQLParsingException.class)
     public void assertNewInstanceWithErrorRDL() throws SQLException {
         String sql = "CREATE SHARDING";
-        TextProtocolBackendHandler actual = TextProtocolBackendHandlerFactory.newInstance(databaseType, sql, connectionSession);
+        TextProtocolBackendHandler actual = TextProtocolBackendHandlerFactory.newInstance(databaseType, sql, Optional::empty, connectionSession);
         assertThat(actual, instanceOf(SkipBackendHandler.class));
     }
 }

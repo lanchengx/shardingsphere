@@ -23,7 +23,6 @@ import javax.sql.DataSource;
 import java.sql.SQLException;
 import java.util.Collection;
 import java.util.Map;
-import java.util.Properties;
 
 /**
  * Database discovery type.
@@ -54,19 +53,9 @@ public interface DatabaseDiscoveryType extends ShardingSphereAlgorithm {
      *
      * @param schemaName schema name
      * @param dataSourceMap data source map
-     * @param disabledDataSourceNames disabled data source names
-     */
-    void updateMemberState(String schemaName, Map<String, DataSource> dataSourceMap, Collection<String> disabledDataSourceNames);
-    
-    /**
-     * Start periodical update.
-     *
-     * @param dataSourceMap data source map
-     * @param schemaName schema name
-     * @param disabledDataSourceNames disabled data source names
      * @param groupName group name
      */
-    void startPeriodicalUpdate(String schemaName, Map<String, DataSource> dataSourceMap, Collection<String> disabledDataSourceNames, String groupName);
+    void updateMemberState(String schemaName, Map<String, DataSource> dataSourceMap, String groupName);
     
     /**
      * Get primary data source.
@@ -74,12 +63,4 @@ public interface DatabaseDiscoveryType extends ShardingSphereAlgorithm {
      * @return primary data source
      */
     String getPrimaryDataSource();
-    
-    /**
-     * Update properties.
-     *
-     * @param groupName group name
-     * @param props properties
-     */
-    void updateProperties(String groupName, Properties props);
 }

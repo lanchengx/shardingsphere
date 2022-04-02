@@ -17,14 +17,20 @@
 
 package org.apache.shardingsphere.proxy.backend.text.data.impl;
 
+import io.vertx.core.Future;
 import lombok.RequiredArgsConstructor;
 import org.apache.shardingsphere.infra.binder.statement.SQLStatementContext;
+import org.apache.shardingsphere.infra.database.type.DatabaseType;
+import org.apache.shardingsphere.infra.database.type.dialect.OpenGaussDatabaseType;
+import org.apache.shardingsphere.infra.database.type.dialect.PostgreSQLDatabaseType;
+import org.apache.shardingsphere.infra.distsql.exception.resource.RequiredResourceMissedException;
 import org.apache.shardingsphere.proxy.backend.communication.DatabaseCommunicationEngine;
 import org.apache.shardingsphere.proxy.backend.communication.DatabaseCommunicationEngineFactory;
-import org.apache.shardingsphere.proxy.backend.communication.jdbc.connection.JDBCConnectionSession;
+import org.apache.shardingsphere.proxy.backend.communication.jdbc.JDBCDatabaseCommunicationEngine;
 import org.apache.shardingsphere.proxy.backend.context.ProxyContext;
 import org.apache.shardingsphere.proxy.backend.exception.RuleNotExistedException;
 import org.apache.shardingsphere.proxy.backend.response.header.ResponseHeader;
+import org.apache.shardingsphere.proxy.backend.session.ConnectionSession;
 import org.apache.shardingsphere.proxy.backend.text.data.DatabaseBackendHandler;
 
 import java.sql.SQLException;
@@ -42,17 +48,49 @@ public final class SchemaAssignedDatabaseBackendHandler implements DatabaseBacke
     
     private final String sql;
     
-    private final JDBCConnectionSession connectionSession;
+    private final ConnectionSession connectionSession;
     
-    private DatabaseCommunicationEngine databaseCommunicationEngine;
+    private DatabaseCommunicationEngine<?> databaseCommunicationEngine;
     
     @Override
     public ResponseHeader execute() throws SQLException {
-        if (!ProxyContext.getInstance().getMetaData(connectionSession.getSchemaName()).isComplete()) {
+        prepareDatabaseCommunicationEngine();
+        return (ResponseHeader) databaseCommunicationEngine.execute();
+    }
+    
+    @Override
+    public Future<ResponseHeader> executeFuture() {
+        try {
+            prepareDatabaseCommunicationEngine();
+            return (Future<ResponseHeader>) databaseCommunicationEngine.execute();
+            // CHECKSTYLE:OFF
+        } catch (final Exception ex) {
+            // CHECKSTYLE:ON
+            return Future.failedFuture(ex);
+        }
+    }
+    
+    private void prepareDatabaseCommunicationEngine() throws RequiredResourceMissedException {
+        boolean isSystemSchema = containsSystemSchema(sqlStatementContext.getDatabaseType(), sqlStatementContext.getTablesContext().getSchemaNames());
+        if (!isSystemSchema && !ProxyContext.getInstance().getMetaData(connectionSession.getSchemaName()).hasDataSource()) {
+            throw new RequiredResourceMissedException(connectionSession.getSchemaName());
+        }
+        if (!isSystemSchema && !ProxyContext.getInstance().getMetaData(connectionSession.getSchemaName()).isComplete()) {
             throw new RuleNotExistedException();
         }
-        databaseCommunicationEngine = databaseCommunicationEngineFactory.newTextProtocolInstance(sqlStatementContext, sql, connectionSession);
-        return databaseCommunicationEngine.execute();
+        databaseCommunicationEngine = databaseCommunicationEngineFactory.newTextProtocolInstance(sqlStatementContext, sql, connectionSession.getBackendConnection());
+    }
+    
+    private boolean containsSystemSchema(final DatabaseType databaseType, final Collection<String> schemaNames) {
+        if (databaseType instanceof PostgreSQLDatabaseType || databaseType instanceof OpenGaussDatabaseType) {
+            for (String each : schemaNames) {
+                if (!databaseType.getSystemSchemas().contains(each)) {
+                    continue;
+                }
+                return true;
+            }
+        }
+        return databaseType.getSystemSchemas().contains(connectionSession.getSchemaName());
     }
     
     @Override
@@ -67,8 +105,8 @@ public final class SchemaAssignedDatabaseBackendHandler implements DatabaseBacke
     
     @Override
     public void close() throws SQLException {
-        if (null != databaseCommunicationEngine) {
-            databaseCommunicationEngine.close();
+        if (databaseCommunicationEngine instanceof JDBCDatabaseCommunicationEngine) {
+            ((JDBCDatabaseCommunicationEngine) databaseCommunicationEngine).close();
         }
     }
 }
