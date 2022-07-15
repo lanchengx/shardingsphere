@@ -25,12 +25,13 @@ import org.apache.shardingsphere.infra.yaml.config.pojo.rulealtered.YamlOnRuleAl
 import org.apache.shardingsphere.sharding.api.config.ShardingRuleConfiguration;
 import org.apache.shardingsphere.sharding.yaml.config.rule.YamlShardingAutoTableRuleConfiguration;
 import org.apache.shardingsphere.sharding.yaml.config.rule.YamlTableRuleConfiguration;
+import org.apache.shardingsphere.sharding.yaml.config.strategy.audit.YamlShardingAuditStrategyConfiguration;
 import org.apache.shardingsphere.sharding.yaml.config.strategy.keygen.YamlKeyGenerateStrategyConfiguration;
 import org.apache.shardingsphere.sharding.yaml.config.strategy.sharding.YamlShardingStrategyConfiguration;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.Map;
 
 /**
@@ -44,9 +45,9 @@ public final class YamlShardingRuleConfiguration implements YamlRuleConfiguratio
     
     private Map<String, YamlShardingAutoTableRuleConfiguration> autoTables = new LinkedHashMap<>();
     
-    private Collection<String> bindingTables = new ArrayList<>();
+    private Collection<String> bindingTables = new LinkedList<>();
     
-    private Collection<String> broadcastTables = new ArrayList<>();
+    private Collection<String> broadcastTables = new LinkedList<>();
     
     private YamlShardingStrategyConfiguration defaultDatabaseStrategy;
     
@@ -54,10 +55,14 @@ public final class YamlShardingRuleConfiguration implements YamlRuleConfiguratio
     
     private YamlKeyGenerateStrategyConfiguration defaultKeyGenerateStrategy;
     
+    private YamlShardingAuditStrategyConfiguration defaultAuditStrategy;
+    
     private Map<String, YamlShardingSphereAlgorithmConfiguration> shardingAlgorithms = new LinkedHashMap<>();
     
     private Map<String, YamlShardingSphereAlgorithmConfiguration> keyGenerators = new LinkedHashMap<>();
-
+    
+    private Map<String, YamlShardingSphereAlgorithmConfiguration> auditors = new LinkedHashMap<>();
+    
     private String defaultShardingColumn;
     
     private String scalingName;

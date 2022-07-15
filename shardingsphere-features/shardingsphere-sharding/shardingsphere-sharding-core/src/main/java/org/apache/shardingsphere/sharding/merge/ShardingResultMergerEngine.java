@@ -17,18 +17,20 @@
 
 package org.apache.shardingsphere.sharding.merge;
 
-import org.apache.shardingsphere.sharding.constant.ShardingOrder;
-import org.apache.shardingsphere.sharding.rule.ShardingRule;
-import org.apache.shardingsphere.sharding.merge.dal.ShardingDALResultMerger;
-import org.apache.shardingsphere.sharding.merge.dql.ShardingDQLResultMerger;
-import org.apache.shardingsphere.infra.database.type.DatabaseType;
 import org.apache.shardingsphere.infra.binder.statement.SQLStatementContext;
 import org.apache.shardingsphere.infra.binder.statement.dml.SelectStatementContext;
-import org.apache.shardingsphere.sql.parser.sql.common.statement.dal.DALStatement;
 import org.apache.shardingsphere.infra.config.props.ConfigurationProperties;
+import org.apache.shardingsphere.infra.database.type.DatabaseType;
 import org.apache.shardingsphere.infra.merge.engine.merger.ResultMerger;
 import org.apache.shardingsphere.infra.merge.engine.merger.ResultMergerEngine;
 import org.apache.shardingsphere.infra.merge.engine.merger.impl.TransparentResultMerger;
+import org.apache.shardingsphere.sharding.constant.ShardingOrder;
+import org.apache.shardingsphere.sharding.merge.dal.ShardingDALResultMerger;
+import org.apache.shardingsphere.sharding.merge.ddl.ShardingDDLResultMerger;
+import org.apache.shardingsphere.sharding.merge.dql.ShardingDQLResultMerger;
+import org.apache.shardingsphere.sharding.rule.ShardingRule;
+import org.apache.shardingsphere.sql.parser.sql.common.statement.dal.DALStatement;
+import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.DDLStatement;
 
 /**
  * Result merger engine for sharding.
@@ -36,13 +38,16 @@ import org.apache.shardingsphere.infra.merge.engine.merger.impl.TransparentResul
 public final class ShardingResultMergerEngine implements ResultMergerEngine<ShardingRule> {
     
     @Override
-    public ResultMerger newInstance(final String schemaName, final DatabaseType databaseType, final ShardingRule shardingRule, final ConfigurationProperties props,
+    public ResultMerger newInstance(final String databaseName, final DatabaseType databaseType, final ShardingRule shardingRule, final ConfigurationProperties props,
                                     final SQLStatementContext<?> sqlStatementContext) {
         if (sqlStatementContext instanceof SelectStatementContext) {
             return new ShardingDQLResultMerger(databaseType);
-        } 
+        }
+        if (sqlStatementContext.getSqlStatement() instanceof DDLStatement) {
+            return new ShardingDDLResultMerger();
+        }
         if (sqlStatementContext.getSqlStatement() instanceof DALStatement) {
-            return new ShardingDALResultMerger(schemaName, shardingRule);
+            return new ShardingDALResultMerger(databaseName, shardingRule);
         }
         return new TransparentResultMerger();
     }

@@ -17,34 +17,40 @@
 
 package org.apache.shardingsphere.mode.manager.standalone.lock;
 
+import org.apache.shardingsphere.infra.lock.LockScope;
 import org.apache.shardingsphere.infra.lock.ShardingSphereLock;
-import org.apache.shardingsphere.mode.lock.LockContext;
-
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.ReentrantLock;
+import org.apache.shardingsphere.mode.manager.lock.AbstractLockContext;
+import org.apache.shardingsphere.mode.manager.lock.definition.DatabaseLockDefinition;
 
 /**
  * Standalone lock context.
  */
-public final class StandaloneLockContext implements LockContext {
+public final class StandaloneLockContext extends AbstractLockContext {
     
-    private final Map<String, ShardingSphereLock> locks = new ConcurrentHashMap<>();
+    private final ShardingSphereLock standaloneLock = new ShardingSphereStandaloneLock();
     
     @Override
-    public synchronized Optional<ShardingSphereLock> getSchemaLock(final String schemaName) {
-        ShardingSphereLock result = locks.get(schemaName);
-        if (null == result) {
-            result = new ShardingSphereNonReentrantLock(new ReentrantLock());
-            locks.put(schemaName, result);
-        }
-        return Optional.of(result);
+    public ShardingSphereLock getLock(final LockScope lockScope) {
+        return standaloneLock;
     }
     
     @Override
-    public boolean isLockedSchema(final String schemaName) {
-        ShardingSphereLock shardingSphereLock = locks.get(schemaName);
-        return null != shardingSphereLock && shardingSphereLock.isLocked(schemaName);
+    protected boolean tryLock(final DatabaseLockDefinition lockDefinition) {
+        return standaloneLock.tryLock(lockDefinition.getLockNameDefinition().getDatabaseName());
+    }
+    
+    @Override
+    protected boolean tryLock(final DatabaseLockDefinition lockDefinition, final long timeoutMilliseconds) {
+        return standaloneLock.tryLock(lockDefinition.getLockNameDefinition().getDatabaseName(), timeoutMilliseconds);
+    }
+    
+    @Override
+    protected void releaseLock(final DatabaseLockDefinition lockDefinition) {
+        standaloneLock.releaseLock(lockDefinition.getLockNameDefinition().getDatabaseName());
+    }
+    
+    @Override
+    protected boolean isLocked(final DatabaseLockDefinition lockDefinition) {
+        return standaloneLock.isLocked(lockDefinition.getLockNameDefinition().getDatabaseName());
     }
 }

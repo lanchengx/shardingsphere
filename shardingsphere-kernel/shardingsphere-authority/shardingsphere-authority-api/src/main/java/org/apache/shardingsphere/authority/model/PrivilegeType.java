@@ -17,15 +17,9 @@
 
 package org.apache.shardingsphere.authority.model;
 
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
-
-
 /**
  * Privilege Type.
  */
-@RequiredArgsConstructor
-@Getter
 public enum PrivilegeType {
     
     SELECT,

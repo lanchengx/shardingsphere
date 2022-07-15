@@ -17,7 +17,8 @@
 
 package org.apache.shardingsphere.transaction.rule.builder;
 
-import org.apache.shardingsphere.infra.metadata.ShardingSphereMetaData;
+import org.apache.shardingsphere.infra.instance.InstanceContext;
+import org.apache.shardingsphere.infra.metadata.database.ShardingSphereDatabase;
 import org.apache.shardingsphere.infra.rule.builder.global.GlobalRuleBuilder;
 import org.apache.shardingsphere.transaction.config.TransactionRuleConfiguration;
 import org.apache.shardingsphere.transaction.constant.TransactionOrder;
@@ -31,8 +32,8 @@ import java.util.Map;
 public final class TransactionRuleBuilder implements GlobalRuleBuilder<TransactionRuleConfiguration> {
     
     @Override
-    public TransactionRule build(final TransactionRuleConfiguration ruleConfig, final Map<String, ShardingSphereMetaData> metaDataMap) {
-        return new TransactionRule(ruleConfig);
+    public TransactionRule build(final TransactionRuleConfiguration ruleConfig, final Map<String, ShardingSphereDatabase> databases, final InstanceContext instanceContext) {
+        return new TransactionRule(ruleConfig, databases, instanceContext);
     }
     
     @Override

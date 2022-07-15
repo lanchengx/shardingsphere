@@ -23,7 +23,7 @@ import org.apache.shardingsphere.infra.distsql.exception.DistSQLException;
 import org.apache.shardingsphere.infra.distsql.exception.rule.AlgorithmInUsedException;
 import org.apache.shardingsphere.infra.distsql.exception.rule.RequiredAlgorithmMissedException;
 import org.apache.shardingsphere.infra.distsql.update.RuleDefinitionAlterUpdater;
-import org.apache.shardingsphere.infra.metadata.ShardingSphereMetaData;
+import org.apache.shardingsphere.infra.metadata.database.ShardingSphereDatabase;
 import org.apache.shardingsphere.shadow.api.config.ShadowRuleConfiguration;
 import org.apache.shardingsphere.shadow.distsql.handler.checker.ShadowRuleStatementChecker;
 import org.apache.shardingsphere.shadow.distsql.parser.segment.ShadowAlgorithmSegment;
@@ -48,8 +48,8 @@ public final class AlterShadowAlgorithmStatementUpdater implements RuleDefinitio
     }
     
     private Map<String, ShardingSphereAlgorithmConfiguration> buildAlgorithmMap(final AlterShadowAlgorithmStatement sqlStatement) {
-        return sqlStatement.getAlgorithms().stream().collect(Collectors.toMap(ShadowAlgorithmSegment::getAlgorithmName,
-            each -> new ShardingSphereAlgorithmConfiguration(each.getAlgorithmSegment().getName(), each.getAlgorithmSegment().getProps())));
+        return sqlStatement.getAlgorithms().stream().collect(Collectors.toMap(ShadowAlgorithmSegment::getAlgorithmName, each -> new ShardingSphereAlgorithmConfiguration(
+                each.getAlgorithmSegment().getName(), each.getAlgorithmSegment().getProps())));
     }
     
     @Override
@@ -58,22 +58,21 @@ public final class AlterShadowAlgorithmStatementUpdater implements RuleDefinitio
     }
     
     @Override
-    public void checkSQLStatement(final ShardingSphereMetaData metaData, final AlterShadowAlgorithmStatement sqlStatement, final ShadowRuleConfiguration currentRuleConfig) throws DistSQLException {
-        String schemaName = metaData.getName();
-        checkConfigurationExist(schemaName, currentRuleConfig);
-        checkAlgorithms(schemaName, sqlStatement, currentRuleConfig);
+    public void checkSQLStatement(final ShardingSphereDatabase database, final AlterShadowAlgorithmStatement sqlStatement, final ShadowRuleConfiguration currentRuleConfig) throws DistSQLException {
+        checkConfigurationExist(database.getName(), currentRuleConfig);
+        checkAlgorithms(database.getName(), sqlStatement, currentRuleConfig);
     }
     
-    private void checkConfigurationExist(final String schemaName, final ShadowRuleConfiguration currentRuleConfig) throws DistSQLException {
-        ShadowRuleStatementChecker.checkConfigurationExist(schemaName, currentRuleConfig);
+    private void checkConfigurationExist(final String databaseName, final ShadowRuleConfiguration currentRuleConfig) throws DistSQLException {
+        ShadowRuleStatementChecker.checkConfigurationExist(databaseName, currentRuleConfig);
     }
     
-    private void checkAlgorithms(final String schemaName, final AlterShadowAlgorithmStatement sqlStatement, final ShadowRuleConfiguration currentRuleConfig) throws DistSQLException {
+    private void checkAlgorithms(final String databaseName, final AlterShadowAlgorithmStatement sqlStatement, final ShadowRuleConfiguration currentRuleConfig) throws DistSQLException {
         ShadowRuleStatementChecker.checkAlgorithmCompleteness(sqlStatement.getAlgorithms());
         Collection<String> requireAlgorithmNames = sqlStatement.getAlgorithms().stream().map(ShadowAlgorithmSegment::getAlgorithmName).collect(Collectors.toList());
-        ShadowRuleStatementChecker.checkAnyDuplicate(requireAlgorithmNames, duplicate -> new AlgorithmInUsedException(schemaName, duplicate));
-        ShadowRuleStatementChecker.checkAlgorithmExist(requireAlgorithmNames, currentRuleConfig.getShadowAlgorithms().keySet(), 
-            different -> new RequiredAlgorithmMissedException(SHADOW, schemaName, different));
+        ShadowRuleStatementChecker.checkAnyDuplicate(requireAlgorithmNames, duplicated -> new AlgorithmInUsedException(databaseName, duplicated));
+        ShadowRuleStatementChecker.checkAlgorithmExist(requireAlgorithmNames, currentRuleConfig.getShadowAlgorithms().keySet(), different -> new RequiredAlgorithmMissedException(
+                SHADOW, databaseName, different));
     }
     
     @Override

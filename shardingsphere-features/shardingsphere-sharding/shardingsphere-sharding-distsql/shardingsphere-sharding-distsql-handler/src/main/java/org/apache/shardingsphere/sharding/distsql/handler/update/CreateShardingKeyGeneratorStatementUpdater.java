@@ -23,18 +23,15 @@ import org.apache.shardingsphere.infra.distsql.exception.DistSQLException;
 import org.apache.shardingsphere.infra.distsql.exception.rule.DuplicateKeyGeneratorException;
 import org.apache.shardingsphere.infra.distsql.exception.rule.InvalidAlgorithmConfigurationException;
 import org.apache.shardingsphere.infra.distsql.update.RuleDefinitionCreateUpdater;
-import org.apache.shardingsphere.infra.metadata.ShardingSphereMetaData;
+import org.apache.shardingsphere.infra.metadata.database.ShardingSphereDatabase;
 import org.apache.shardingsphere.sharding.api.config.ShardingRuleConfiguration;
 import org.apache.shardingsphere.sharding.distsql.handler.converter.ShardingTableRuleStatementConverter;
 import org.apache.shardingsphere.sharding.distsql.parser.segment.ShardingKeyGeneratorSegment;
 import org.apache.shardingsphere.sharding.distsql.parser.statement.CreateShardingKeyGeneratorStatement;
-import org.apache.shardingsphere.sharding.spi.KeyGenerateAlgorithm;
-import org.apache.shardingsphere.spi.typed.TypedSPIRegistry;
+import org.apache.shardingsphere.sharding.factory.KeyGenerateAlgorithmFactory;
 
 import java.util.Collection;
-import java.util.LinkedList;
 import java.util.Map;
-import java.util.Properties;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -44,18 +41,17 @@ import java.util.stream.Collectors;
 public final class CreateShardingKeyGeneratorStatementUpdater implements RuleDefinitionCreateUpdater<CreateShardingKeyGeneratorStatement, ShardingRuleConfiguration> {
     
     @Override
-    public void checkSQLStatement(final ShardingSphereMetaData shardingSphereMetaData, final CreateShardingKeyGeneratorStatement sqlStatement,
-                                  final ShardingRuleConfiguration currentRuleConfig) throws DistSQLException {
-        checkDuplicate(shardingSphereMetaData.getName(), sqlStatement, currentRuleConfig);
+    public void checkSQLStatement(final ShardingSphereDatabase database,
+                                  final CreateShardingKeyGeneratorStatement sqlStatement, final ShardingRuleConfiguration currentRuleConfig) throws DistSQLException {
+        checkDuplicate(database.getName(), sqlStatement, currentRuleConfig);
         checkKeyGeneratorAlgorithm(sqlStatement);
     }
     
-    private void checkDuplicate(final String schemaName, final CreateShardingKeyGeneratorStatement sqlStatement, final ShardingRuleConfiguration currentRuleConfig) throws DistSQLException {
-        Collection<String> keyGeneratorNames = sqlStatement.getKeyGeneratorSegments().stream()
-                .map(ShardingKeyGeneratorSegment::getKeyGeneratorName).collect(Collectors.toCollection(LinkedList::new));
-        checkDuplicateInput(keyGeneratorNames, duplicated -> new DuplicateKeyGeneratorException("sharding", schemaName, duplicated));
+    private void checkDuplicate(final String databaseName, final CreateShardingKeyGeneratorStatement sqlStatement, final ShardingRuleConfiguration currentRuleConfig) throws DistSQLException {
+        Collection<String> keyGeneratorNames = sqlStatement.getKeyGeneratorSegments().stream().map(ShardingKeyGeneratorSegment::getKeyGeneratorName).collect(Collectors.toList());
+        checkDuplicateInput(keyGeneratorNames, duplicated -> new DuplicateKeyGeneratorException("sharding", databaseName, duplicated));
         if (null != currentRuleConfig) {
-            checkExist(keyGeneratorNames, currentRuleConfig.getKeyGenerators().keySet(), duplicated -> new DuplicateKeyGeneratorException("sharding", schemaName, duplicated));
+            checkExist(keyGeneratorNames, currentRuleConfig.getKeyGenerators().keySet(), duplicated -> new DuplicateKeyGeneratorException("sharding", databaseName, duplicated));
         }
     }
     
@@ -72,7 +68,7 @@ public final class CreateShardingKeyGeneratorStatementUpdater implements RuleDef
     
     private void checkKeyGeneratorAlgorithm(final CreateShardingKeyGeneratorStatement sqlStatement) throws DistSQLException {
         Collection<String> notExistedKeyGeneratorAlgorithms = sqlStatement.getKeyGeneratorSegments().stream().map(ShardingKeyGeneratorSegment::getAlgorithmSegment).map(AlgorithmSegment::getName)
-                .filter(each -> !TypedSPIRegistry.findRegisteredService(KeyGenerateAlgorithm.class, each, new Properties()).isPresent()).collect(Collectors.toList());
+                .filter(each -> !KeyGenerateAlgorithmFactory.contains(each)).collect(Collectors.toList());
         DistSQLException.predictionThrow(notExistedKeyGeneratorAlgorithms.isEmpty(), () -> new InvalidAlgorithmConfigurationException("sharding", notExistedKeyGeneratorAlgorithms));
     }
     

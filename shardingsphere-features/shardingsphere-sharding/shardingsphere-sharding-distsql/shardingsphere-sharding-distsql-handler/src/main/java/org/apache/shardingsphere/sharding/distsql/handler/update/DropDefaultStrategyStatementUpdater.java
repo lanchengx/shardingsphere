@@ -20,7 +20,7 @@ package org.apache.shardingsphere.sharding.distsql.handler.update;
 import org.apache.shardingsphere.infra.distsql.exception.DistSQLException;
 import org.apache.shardingsphere.infra.distsql.exception.rule.RequiredRuleMissedException;
 import org.apache.shardingsphere.infra.distsql.update.RuleDefinitionDropUpdater;
-import org.apache.shardingsphere.infra.metadata.ShardingSphereMetaData;
+import org.apache.shardingsphere.infra.metadata.database.ShardingSphereDatabase;
 import org.apache.shardingsphere.sharding.api.config.ShardingRuleConfiguration;
 import org.apache.shardingsphere.sharding.api.config.strategy.sharding.ShardingStrategyConfiguration;
 import org.apache.shardingsphere.sharding.distsql.handler.enums.ShardingStrategyLevelType;
@@ -34,33 +34,34 @@ import java.util.Optional;
 public final class DropDefaultStrategyStatementUpdater implements RuleDefinitionDropUpdater<DropDefaultShardingStrategyStatement, ShardingRuleConfiguration> {
     
     @Override
-    public void checkSQLStatement(final ShardingSphereMetaData shardingSphereMetaData, final DropDefaultShardingStrategyStatement sqlStatement,
+    public void checkSQLStatement(final ShardingSphereDatabase database, final DropDefaultShardingStrategyStatement sqlStatement,
                                   final ShardingRuleConfiguration currentRuleConfig) throws DistSQLException {
-        String schemaName = shardingSphereMetaData.getName();
-        if (!isExistRuleConfig(currentRuleConfig) && sqlStatement.isContainsExistClause()) {
+        if (!isExistRuleConfig(currentRuleConfig) && sqlStatement.isIfExists()) {
             return;
         }
-        checkCurrentRuleConfiguration(schemaName, currentRuleConfig);
-        checkExist(schemaName, sqlStatement, currentRuleConfig);
+        String databaseName = database.getName();
+        checkCurrentRuleConfiguration(databaseName, currentRuleConfig);
+        checkExist(databaseName, sqlStatement, currentRuleConfig);
     }
     
-    private void checkExist(final String schemaName, final DropDefaultShardingStrategyStatement sqlStatement, final ShardingRuleConfiguration currentRuleConfig) throws DistSQLException {
-        if (sqlStatement.isContainsExistClause()) {
+    private void checkExist(final String databaseName, final DropDefaultShardingStrategyStatement sqlStatement, final ShardingRuleConfiguration currentRuleConfig) throws DistSQLException {
+        if (sqlStatement.isIfExists()) {
             return;
         }
-        Optional<ShardingStrategyConfiguration> strategyConfiguration = getStrategyConfiguration(currentRuleConfig, sqlStatement.getDefaultType());
-        DistSQLException.predictionThrow(strategyConfiguration.isPresent(),
-            () -> new RequiredRuleMissedException(String.format("Default sharding %s strategy", sqlStatement.getDefaultType().toLowerCase()), schemaName));
+        Optional<ShardingStrategyConfiguration> strategyConfig = getStrategyConfiguration(currentRuleConfig, sqlStatement.getDefaultType());
+        DistSQLException.predictionThrow(strategyConfig.isPresent(), () -> new RequiredRuleMissedException(
+                String.format("Default sharding %s strategy", sqlStatement.getDefaultType().toLowerCase()), databaseName));
     }
     
     private Optional<ShardingStrategyConfiguration> getStrategyConfiguration(final ShardingRuleConfiguration currentRuleConfig, final String type) {
         ShardingStrategyConfiguration result = type.equalsIgnoreCase(ShardingStrategyLevelType.TABLE.name())
-                ? currentRuleConfig.getDefaultTableShardingStrategy() : currentRuleConfig.getDefaultDatabaseShardingStrategy();
+                ? currentRuleConfig.getDefaultTableShardingStrategy()
+                : currentRuleConfig.getDefaultDatabaseShardingStrategy();
         return Optional.ofNullable(result);
     }
     
-    private void checkCurrentRuleConfiguration(final String schemaName, final ShardingRuleConfiguration currentRuleConfig) throws DistSQLException {
-        DistSQLException.predictionThrow(currentRuleConfig != null, () -> new RequiredRuleMissedException("Sharding", schemaName));
+    private void checkCurrentRuleConfiguration(final String databaseName, final ShardingRuleConfiguration currentRuleConfig) throws DistSQLException {
+        DistSQLException.predictionThrow(currentRuleConfig != null, () -> new RequiredRuleMissedException("Sharding", databaseName));
     }
     
     @Override

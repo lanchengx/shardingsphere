@@ -35,15 +35,14 @@ import org.apache.shardingsphere.proxy.backend.context.ProxyContext;
 import org.apache.shardingsphere.proxy.backend.exception.NoDatabaseSelectedException;
 import org.apache.shardingsphere.proxy.backend.exception.RuleNotExistedException;
 import org.apache.shardingsphere.proxy.backend.response.header.ResponseHeader;
+import org.apache.shardingsphere.proxy.backend.response.header.query.QueryHeader;
 import org.apache.shardingsphere.proxy.backend.response.header.query.QueryResponseHeader;
-import org.apache.shardingsphere.proxy.backend.response.header.query.impl.QueryHeader;
 import org.apache.shardingsphere.proxy.backend.session.ConnectionSession;
 import org.apache.shardingsphere.proxy.backend.text.admin.executor.DatabaseAdminQueryExecutor;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.dml.SelectStatement;
 
 import java.sql.SQLException;
 import java.sql.Types;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
@@ -71,30 +70,30 @@ public final class UnicastResourceShowExecutor implements DatabaseAdminQueryExec
     
     @Override
     public void execute(final ConnectionSession connectionSession) throws SQLException {
-        String originSchema = connectionSession.getSchemaName();
-        String schemaName = null == originSchema ? getFirstSchemaName() : originSchema;
-        if (!ProxyContext.getInstance().getMetaData(schemaName).hasDataSource()) {
+        String originDatabase = connectionSession.getDatabaseName();
+        String databaseName = null == originDatabase ? getFirstDatabaseName() : originDatabase;
+        if (!ProxyContext.getInstance().getDatabase(databaseName).containsDataSource()) {
             throw new RuleNotExistedException();
         }
         try {
-            connectionSession.setCurrentSchema(schemaName);
-            SQLStatementContext<?> sqlStatementContext = SQLStatementContextFactory.newInstance(ProxyContext.getInstance().getContextManager().getMetaDataContexts().getMetaDataMap(),
-                    sqlStatement, connectionSession.getDefaultSchemaName());
+            connectionSession.setCurrentDatabase(databaseName);
+            SQLStatementContext<?> sqlStatementContext = SQLStatementContextFactory.newInstance(ProxyContext.getInstance().getContextManager().getMetaDataContexts().getMetaData().getDatabases(),
+                    sqlStatement, connectionSession.getDefaultDatabaseName());
             databaseCommunicationEngine = databaseCommunicationEngineFactory.newTextProtocolInstance(sqlStatementContext, sql, connectionSession.getBackendConnection());
             responseHeader = databaseCommunicationEngine.execute();
             mergedResult = new TransparentMergedResult(createQueryResult());
         } finally {
-            connectionSession.setCurrentSchema(originSchema);
+            connectionSession.setCurrentDatabase(originDatabase);
             databaseCommunicationEngine.close();
         }
     }
     
-    private String getFirstSchemaName() {
-        Collection<String> schemaNames = ProxyContext.getInstance().getAllSchemaNames();
-        if (schemaNames.isEmpty()) {
+    private String getFirstDatabaseName() {
+        Collection<String> databaseNames = ProxyContext.getInstance().getAllDatabaseNames();
+        if (databaseNames.isEmpty()) {
             throw new NoDatabaseSelectedException();
         }
-        Optional<String> result = schemaNames.stream().filter(each -> ProxyContext.getInstance().getMetaData(each).hasDataSource()).findFirst();
+        Optional<String> result = databaseNames.stream().filter(each -> ProxyContext.getInstance().getDatabase(each).containsDataSource()).findFirst();
         if (!result.isPresent()) {
             throw new RuleNotExistedException();
         }
@@ -103,19 +102,18 @@ public final class UnicastResourceShowExecutor implements DatabaseAdminQueryExec
     
     @Override
     public QueryResultMetaData getQueryResultMetaData() {
-        LinkedList<RawQueryResultColumnMetaData> raws = ((QueryResponseHeader) responseHeader).getQueryHeaders().stream().map(QueryHeader::getColumnLabel)
-                .map(each -> new RawQueryResultColumnMetaData("", each.toString(), each.toString(), Types.VARCHAR, "VARCHAR", 100, 0))
-                .collect(Collectors.toCollection(LinkedList::new));
-        return new RawQueryResultMetaData(raws);
+        List<RawQueryResultColumnMetaData> columns = ((QueryResponseHeader) responseHeader).getQueryHeaders().stream().map(QueryHeader::getColumnLabel)
+                .map(each -> new RawQueryResultColumnMetaData("", each, each, Types.VARCHAR, "VARCHAR", 100, 0))
+                .collect(Collectors.toList());
+        return new RawQueryResultMetaData(columns);
     }
     
     private QueryResult createQueryResult() throws SQLException {
         List<MemoryQueryResultDataRow> rows = new LinkedList<>();
         while (databaseCommunicationEngine.next()) {
-            Collection<Object> data = databaseCommunicationEngine.getQueryResponseRow().getData();
-            rows.add(new MemoryQueryResultDataRow(new ArrayList<>(data)));
+            List<Object> data = databaseCommunicationEngine.getQueryResponseRow().getData();
+            rows.add(new MemoryQueryResultDataRow(data));
         }
         return new RawMemoryQueryResult(getQueryResultMetaData(), rows);
     }
-    
 }

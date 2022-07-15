@@ -22,7 +22,7 @@ import org.apache.shardingsphere.db.protocol.mysql.packet.command.query.MySQLFie
 import org.apache.shardingsphere.db.protocol.mysql.packet.generic.MySQLEofPacket;
 import org.apache.shardingsphere.db.protocol.mysql.packet.generic.MySQLOKPacket;
 import org.apache.shardingsphere.db.protocol.packet.DatabasePacket;
-import org.apache.shardingsphere.proxy.backend.response.header.query.impl.QueryHeader;
+import org.apache.shardingsphere.proxy.backend.response.header.query.QueryHeader;
 import org.apache.shardingsphere.proxy.backend.response.header.query.QueryResponseHeader;
 import org.apache.shardingsphere.proxy.backend.response.header.update.UpdateResponseHeader;
 import org.junit.Test;
@@ -47,7 +47,7 @@ public final class ResponsePacketBuilderTest {
         QueryHeader queryHeader2 = new QueryHeader("schema2", "table2", "columnLabel2", "columnName2", 8, "VARCHAR", 7, 9, false, true, true, true);
         List<QueryHeader> queryHeaders = Arrays.asList(queryHeader1, queryHeader2);
         QueryResponseHeader queryResponseHeader = new QueryResponseHeader(queryHeaders);
-        Collection<DatabasePacket<?>> actual = ResponsePacketBuilder.buildQueryResponsePackets(queryResponseHeader, 255);
+        Collection<DatabasePacket<?>> actual = ResponsePacketBuilder.buildQueryResponsePackets(queryResponseHeader, 255, 0);
         assertTrue(actual.stream().findAny().isPresent());
         assertThat(actual.stream().findAny().get(), anyOf(instanceOf(MySQLFieldCountPacket.class), instanceOf(MySQLColumnDefinition41Packet.class), instanceOf(MySQLEofPacket.class)));
     }
@@ -57,7 +57,7 @@ public final class ResponsePacketBuilderTest {
         UpdateResponseHeader updateResponseHeader = mock(UpdateResponseHeader.class);
         when(updateResponseHeader.getUpdateCount()).thenReturn(10L);
         when(updateResponseHeader.getLastInsertId()).thenReturn(100L);
-        Collection<DatabasePacket<?>> actual = ResponsePacketBuilder.buildUpdateResponsePackets(updateResponseHeader);
+        Collection<DatabasePacket<?>> actual = ResponsePacketBuilder.buildUpdateResponsePackets(updateResponseHeader, 0);
         assertTrue(actual.stream().findAny().isPresent());
         MySQLOKPacket actualItem = (MySQLOKPacket) actual.stream().findAny().get();
         assertThat(actualItem, instanceOf(MySQLOKPacket.class));

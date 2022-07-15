@@ -15,10 +15,7 @@
 # limitations under the License.
 #
 
-schemaName: sharding-databases-range
-
-mode:
-  type: Memory
+databaseName: sharding-databases-range
 
 dataSources:
   ds_0:
@@ -58,6 +55,7 @@ rules:
     - t_address
   defaultDatabaseStrategy:
     standard:
+      shardingColumn: user_id
       shardingAlgorithmName: standard-test-db
   defaultTableStrategy:
     none:

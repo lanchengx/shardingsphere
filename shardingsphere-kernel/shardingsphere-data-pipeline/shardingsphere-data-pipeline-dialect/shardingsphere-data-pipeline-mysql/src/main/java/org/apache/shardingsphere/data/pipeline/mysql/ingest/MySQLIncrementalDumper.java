@@ -30,6 +30,7 @@ import org.apache.shardingsphere.data.pipeline.api.ingest.record.DataRecord;
 import org.apache.shardingsphere.data.pipeline.api.ingest.record.FinishedRecord;
 import org.apache.shardingsphere.data.pipeline.api.ingest.record.PlaceholderRecord;
 import org.apache.shardingsphere.data.pipeline.api.ingest.record.Record;
+import org.apache.shardingsphere.data.pipeline.api.metadata.ActualTableName;
 import org.apache.shardingsphere.data.pipeline.core.ingest.IngestDataChangeType;
 import org.apache.shardingsphere.data.pipeline.core.ingest.dumper.AbstractIncrementalDumper;
 import org.apache.shardingsphere.data.pipeline.core.metadata.loader.PipelineTableMetaDataLoader;
@@ -44,15 +45,15 @@ import org.apache.shardingsphere.data.pipeline.mysql.ingest.binlog.event.UpdateR
 import org.apache.shardingsphere.data.pipeline.mysql.ingest.binlog.event.WriteRowsEvent;
 import org.apache.shardingsphere.data.pipeline.mysql.ingest.client.ConnectInfo;
 import org.apache.shardingsphere.data.pipeline.mysql.ingest.client.MySQLClient;
-import org.apache.shardingsphere.data.pipeline.mysql.ingest.column.value.ValueHandler;
+import org.apache.shardingsphere.data.pipeline.mysql.ingest.column.value.MySQLDataTypeHandler;
+import org.apache.shardingsphere.data.pipeline.mysql.ingest.column.value.MySQLDataTypeHandlerFactory;
 import org.apache.shardingsphere.infra.database.metadata.DataSourceMetaData;
-import org.apache.shardingsphere.infra.database.type.DatabaseTypeRegistry;
-import org.apache.shardingsphere.spi.singleton.SingletonSPIRegistry;
+import org.apache.shardingsphere.infra.database.type.DatabaseTypeFactory;
 
 import java.io.Serializable;
 import java.security.SecureRandom;
-import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Random;
 
 /**
@@ -60,8 +61,6 @@ import java.util.Random;
  */
 @Slf4j
 public final class MySQLIncrementalDumper extends AbstractIncrementalDumper<BinlogPosition> {
-    
-    private static final Map<String, ValueHandler> VALUE_HANDLER_MAP;
     
     private final BinlogPosition binlogPosition;
     
@@ -73,9 +72,9 @@ public final class MySQLIncrementalDumper extends AbstractIncrementalDumper<Binl
     
     private final PipelineChannel channel;
     
-    static {
-        VALUE_HANDLER_MAP = SingletonSPIRegistry.getSingletonInstancesMap(ValueHandler.class, ValueHandler::getTypeName);
-    }
+    private final MySQLClient client;
+    
+    private final String catalog;
     
     public MySQLIncrementalDumper(final DumperConfiguration dumperConfig, final IngestPosition<BinlogPosition> binlogPosition,
                                   final PipelineChannel channel, final PipelineTableMetaDataLoader metaDataLoader) {
@@ -85,6 +84,11 @@ public final class MySQLIncrementalDumper extends AbstractIncrementalDumper<Binl
         Preconditions.checkArgument(dumperConfig.getDataSourceConfig() instanceof StandardPipelineDataSourceConfiguration, "MySQLBinlogDumper only support StandardPipelineDataSourceConfiguration");
         this.channel = channel;
         this.metaDataLoader = metaDataLoader;
+        YamlJdbcConfiguration jdbcConfig = ((StandardPipelineDataSourceConfiguration) dumperConfig.getDataSourceConfig()).getJdbcConfig();
+        log.info("incremental dump, jdbcUrl={}", jdbcConfig.getJdbcUrl());
+        DataSourceMetaData metaData = DatabaseTypeFactory.getInstance("MySQL").getDataSourceMetaData(jdbcConfig.getJdbcUrl(), null);
+        client = new MySQLClient(new ConnectInfo(random.nextInt(), metaData.getHostname(), metaData.getPort(), jdbcConfig.getUsername(), jdbcConfig.getPassword()));
+        catalog = metaData.getCatalog();
     }
     
     @Override
@@ -93,17 +97,13 @@ public final class MySQLIncrementalDumper extends AbstractIncrementalDumper<Binl
     }
     
     private void dump() {
-        YamlJdbcConfiguration jdbcConfig = ((StandardPipelineDataSourceConfiguration) dumperConfig.getDataSourceConfig()).getJdbcConfig();
-        log.info("incremental dump, jdbcUrl={}", jdbcConfig.getJdbcUrl());
-        DataSourceMetaData metaData = DatabaseTypeRegistry.getActualDatabaseType("MySQL").getDataSourceMetaData(jdbcConfig.getJdbcUrl(), null);
-        MySQLClient client = new MySQLClient(new ConnectInfo(random.nextInt(), metaData.getHostname(), metaData.getPort(), jdbcConfig.getUsername(), jdbcConfig.getPassword()));
         client.connect();
         client.subscribe(binlogPosition.getFilename(), binlogPosition.getPosition());
         int eventCount = 0;
         while (isRunning()) {
             AbstractBinlogEvent event = client.poll();
             if (null != event) {
-                handleEvent(metaData.getCatalog(), event);
+                handleEvent(catalog, event);
                 eventCount++;
             }
         }
@@ -117,33 +117,38 @@ public final class MySQLIncrementalDumper extends AbstractIncrementalDumper<Binl
             return;
         }
         if (event instanceof WriteRowsEvent) {
-            handleWriteRowsEvent((WriteRowsEvent) event);
+            PipelineTableMetaData tableMetaData = getPipelineTableMetaData(((WriteRowsEvent) event).getTableName());
+            handleWriteRowsEvent((WriteRowsEvent) event, tableMetaData);
         } else if (event instanceof UpdateRowsEvent) {
-            handleUpdateRowsEvent((UpdateRowsEvent) event);
+            PipelineTableMetaData tableMetaData = getPipelineTableMetaData(((UpdateRowsEvent) event).getTableName());
+            handleUpdateRowsEvent((UpdateRowsEvent) event, tableMetaData);
         } else if (event instanceof DeleteRowsEvent) {
-            handleDeleteRowsEvent((DeleteRowsEvent) event);
+            PipelineTableMetaData tableMetaData = getPipelineTableMetaData(((DeleteRowsEvent) event).getTableName());
+            handleDeleteRowsEvent((DeleteRowsEvent) event, tableMetaData);
         }
     }
     
     private boolean filter(final String database, final AbstractRowsEvent event) {
-        return !event.getSchemaName().equals(database) || !dumperConfig.getTableNameMap().containsKey(event.getTableName());
+        return !event.getDatabaseName().equals(database) || !dumperConfig.containsTable(event.getTableName());
     }
     
-    private void handleWriteRowsEvent(final WriteRowsEvent event) {
-        PipelineTableMetaData tableMetaData = metaDataLoader.getTableMetaData(event.getTableName());
+    private void handleWriteRowsEvent(final WriteRowsEvent event, final PipelineTableMetaData tableMetaData) {
         for (Serializable[] each : event.getAfterRows()) {
             DataRecord record = createDataRecord(event, each.length);
             record.setType(IngestDataChangeType.INSERT);
             for (int i = 0; i < each.length; i++) {
                 PipelineColumnMetaData columnMetaData = tableMetaData.getColumnMetaData(i);
-                record.addColumn(new Column(columnMetaData.getName(), handleValue(columnMetaData, each[i]), true, columnMetaData.isPrimaryKey()));
+                record.addColumn(new Column(columnMetaData.getName(), handleValue(columnMetaData, each[i]), true, tableMetaData.isUniqueKey(i)));
             }
             pushRecord(record);
         }
     }
     
-    private void handleUpdateRowsEvent(final UpdateRowsEvent event) {
-        PipelineTableMetaData tableMetaData = metaDataLoader.getTableMetaData(event.getTableName());
+    private PipelineTableMetaData getPipelineTableMetaData(final String actualTableName) {
+        return metaDataLoader.getTableMetaData(dumperConfig.getSchemaName(new ActualTableName(actualTableName)), actualTableName);
+    }
+    
+    private void handleUpdateRowsEvent(final UpdateRowsEvent event, final PipelineTableMetaData tableMetaData) {
         for (int i = 0; i < event.getBeforeRows().size(); i++) {
             Serializable[] beforeValues = event.getBeforeRows().get(i);
             Serializable[] afterValues = event.getAfterRows().get(i);
@@ -162,30 +167,26 @@ public final class MySQLIncrementalDumper extends AbstractIncrementalDumper<Binl
         }
     }
     
-    private void handleDeleteRowsEvent(final DeleteRowsEvent event) {
-        PipelineTableMetaData tableMetaData = metaDataLoader.getTableMetaData(event.getTableName());
+    private void handleDeleteRowsEvent(final DeleteRowsEvent event, final PipelineTableMetaData tableMetaData) {
         for (Serializable[] each : event.getBeforeRows()) {
             DataRecord record = createDataRecord(event, each.length);
             record.setType(IngestDataChangeType.DELETE);
             for (int i = 0, length = each.length; i < length; i++) {
                 PipelineColumnMetaData columnMetaData = tableMetaData.getColumnMetaData(i);
-                record.addColumn(new Column(columnMetaData.getName(), handleValue(columnMetaData, each[i]), true, columnMetaData.isPrimaryKey()));
+                record.addColumn(new Column(columnMetaData.getName(), handleValue(columnMetaData, each[i]), true, tableMetaData.isUniqueKey(i)));
             }
             pushRecord(record);
         }
     }
     
     private Serializable handleValue(final PipelineColumnMetaData columnMetaData, final Serializable value) {
-        ValueHandler valueHandler = VALUE_HANDLER_MAP.get(columnMetaData.getDataTypeName());
-        if (null != valueHandler) {
-            return valueHandler.handle(value);
-        }
-        return value;
+        Optional<MySQLDataTypeHandler> dataTypeHandler = MySQLDataTypeHandlerFactory.findInstance(columnMetaData.getDataTypeName());
+        return dataTypeHandler.isPresent() ? dataTypeHandler.get().handle(value) : value;
     }
     
     private DataRecord createDataRecord(final AbstractRowsEvent rowsEvent, final int columnCount) {
         DataRecord result = new DataRecord(new BinlogPosition(rowsEvent.getFileName(), rowsEvent.getPosition(), rowsEvent.getServerId()), columnCount);
-        result.setTableName(dumperConfig.getTableNameMap().get(rowsEvent.getTableName()));
+        result.setTableName(dumperConfig.getLogicTableName(rowsEvent.getTableName()).getLowercase());
         result.setCommitTime(rowsEvent.getTimestamp() * 1000);
         return result;
     }
@@ -202,5 +203,8 @@ public final class MySQLIncrementalDumper extends AbstractIncrementalDumper<Binl
     
     @Override
     protected void doStop() {
+        if (null != client) {
+            client.closeChannel();
+        }
     }
 }

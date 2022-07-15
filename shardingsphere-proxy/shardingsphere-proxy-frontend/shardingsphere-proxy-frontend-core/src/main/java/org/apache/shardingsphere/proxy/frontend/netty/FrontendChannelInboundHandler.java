@@ -24,7 +24,7 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.shardingsphere.db.protocol.CommonConstants;
 import org.apache.shardingsphere.db.protocol.payload.PacketPayload;
-import org.apache.shardingsphere.infra.database.type.DatabaseTypeRegistry;
+import org.apache.shardingsphere.infra.database.type.DatabaseTypeFactory;
 import org.apache.shardingsphere.infra.metadata.user.Grantee;
 import org.apache.shardingsphere.proxy.backend.communication.jdbc.connection.JDBCBackendConnection;
 import org.apache.shardingsphere.proxy.backend.context.ProxyContext;
@@ -32,12 +32,10 @@ import org.apache.shardingsphere.proxy.backend.exception.BackendConnectionExcept
 import org.apache.shardingsphere.proxy.backend.session.ConnectionSession;
 import org.apache.shardingsphere.proxy.frontend.authentication.AuthenticationResult;
 import org.apache.shardingsphere.proxy.frontend.executor.ConnectionThreadExecutorGroup;
+import org.apache.shardingsphere.proxy.frontend.executor.UserExecutorGroup;
 import org.apache.shardingsphere.proxy.frontend.spi.DatabaseProtocolFrontendEngine;
 import org.apache.shardingsphere.proxy.frontend.state.ProxyStateContext;
 import org.apache.shardingsphere.transaction.rule.TransactionRule;
-import org.apache.shardingsphere.transaction.rule.builder.DefaultTransactionRuleConfigurationBuilder;
-
-import java.util.Optional;
 
 /**
  * Frontend channel inbound handler.
@@ -53,13 +51,8 @@ public final class FrontendChannelInboundHandler extends ChannelInboundHandlerAd
     
     public FrontendChannelInboundHandler(final DatabaseProtocolFrontendEngine databaseProtocolFrontendEngine, final Channel channel) {
         this.databaseProtocolFrontendEngine = databaseProtocolFrontendEngine;
-        connectionSession = new ConnectionSession(DatabaseTypeRegistry.getActualDatabaseType(databaseProtocolFrontendEngine.getDatabaseType()), getTransactionRule().getDefaultType(), channel);
-    }
-    
-    private TransactionRule getTransactionRule() {
-        Optional<TransactionRule> transactionRule = ProxyContext.getInstance().getContextManager().getMetaDataContexts().getGlobalRuleMetaData().getRules().stream().filter(
-            each -> each instanceof TransactionRule).map(each -> (TransactionRule) each).findFirst();
-        return transactionRule.orElseGet(() -> new TransactionRule(new DefaultTransactionRuleConfigurationBuilder().build()));
+        connectionSession = new ConnectionSession(DatabaseTypeFactory.getInstance(databaseProtocolFrontendEngine.getType()),
+                ProxyContext.getInstance().getContextManager().getMetaDataContexts().getMetaData().getGlobalRuleMetaData().getSingleRule(TransactionRule.class).getDefaultType(), channel);
     }
     
     @Override
@@ -83,7 +76,7 @@ public final class FrontendChannelInboundHandler extends ChannelInboundHandlerAd
             AuthenticationResult authResult = databaseProtocolFrontendEngine.getAuthenticationEngine().authenticate(context, payload);
             if (authResult.isFinished()) {
                 connectionSession.setGrantee(new Grantee(authResult.getUsername(), authResult.getHostname()));
-                connectionSession.setCurrentSchema(authResult.getDatabase());
+                connectionSession.setCurrentDatabase(authResult.getDatabase());
             }
             return authResult.isFinished();
             // CHECKSTYLE:OFF
@@ -99,7 +92,7 @@ public final class FrontendChannelInboundHandler extends ChannelInboundHandlerAd
     @Override
     public void channelInactive(final ChannelHandlerContext context) {
         context.fireChannelInactive();
-        closeAllResources();
+        UserExecutorGroup.getInstance().getExecutorService().execute(this::closeAllResources);
     }
     
     private void closeAllResources() {

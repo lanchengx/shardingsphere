@@ -25,6 +25,7 @@ import org.apache.shardingsphere.infra.datasource.pool.metadata.DataSourcePoolMe
 import org.apache.shardingsphere.infra.datasource.pool.metadata.DataSourcePoolMetaDataReflection;
 import org.apache.shardingsphere.infra.datasource.props.DataSourceProperties;
 import org.apache.shardingsphere.infra.datasource.props.custom.CustomDataSourceProperties;
+import org.apache.shardingsphere.infra.datasource.registry.GlobalDataSourceRegistry;
 
 import javax.sql.DataSource;
 import java.util.LinkedHashMap;
@@ -39,6 +40,8 @@ import java.util.stream.Collectors;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class DataSourcePoolCreator {
     
+    // TODO when all data source configurations of instance are dropped by DistSQL, cached data source should be closed
+    
     /**
      * Create data sources.
      *
@@ -46,7 +49,19 @@ public final class DataSourcePoolCreator {
      * @return created data sources
      */
     public static Map<String, DataSource> create(final Map<String, DataSourceProperties> dataSourcePropsMap) {
-        return dataSourcePropsMap.entrySet().stream().collect(Collectors.toMap(Entry::getKey, entry -> create(entry.getValue()), (oldValue, currentValue) -> oldValue, LinkedHashMap::new));
+        return create(dataSourcePropsMap, true);
+    }
+    
+    /**
+     * Create data sources.
+     *
+     * @param dataSourcePropsMap data source properties map
+     * @param cacheEnabled cache enabled
+     * @return created data sources
+     */
+    public static Map<String, DataSource> create(final Map<String, DataSourceProperties> dataSourcePropsMap, final boolean cacheEnabled) {
+        return dataSourcePropsMap.entrySet().stream().collect(Collectors.toMap(Entry::getKey, entry -> create(entry.getKey(), entry.getValue(), cacheEnabled), (oldValue, currentValue) -> oldValue,
+                LinkedHashMap::new));
     }
     
     /**
@@ -57,7 +72,7 @@ public final class DataSourcePoolCreator {
      */
     public static DataSource create(final DataSourceProperties dataSourceProps) {
         DataSource result = createDataSource(dataSourceProps.getDataSourceClassName());
-        Optional<DataSourcePoolMetaData> poolMetaData = DataSourcePoolMetaDataFactory.newInstance(dataSourceProps.getDataSourceClassName());
+        Optional<DataSourcePoolMetaData> poolMetaData = DataSourcePoolMetaDataFactory.findInstance(dataSourceProps.getDataSourceClassName());
         DataSourceReflection dataSourceReflection = new DataSourceReflection(result);
         if (poolMetaData.isPresent()) {
             setDefaultFields(dataSourceReflection, poolMetaData.get());
@@ -66,6 +81,22 @@ public final class DataSourcePoolCreator {
             dataSourceReflection.addDefaultDataSourceProperties();
         } else {
             setConfiguredFields(dataSourceProps, dataSourceReflection);
+        }
+        return result;
+    }
+    
+    /**
+     * Create data source.
+     *
+     * @param dataSourceName data source name
+     * @param dataSourceProps data source properties
+     * @param cacheEnabled cache enabled
+     * @return created data source
+     */
+    public static DataSource create(final String dataSourceName, final DataSourceProperties dataSourceProps, final boolean cacheEnabled) {
+        DataSource result = create(dataSourceProps);
+        if (cacheEnabled && !GlobalDataSourceRegistry.getInstance().getCachedDataSourceDataSources().containsKey(dataSourceName)) {
+            GlobalDataSourceRegistry.getInstance().getCachedDataSourceDataSources().put(dataSourceName, result);
         }
         return result;
     }

@@ -32,20 +32,21 @@ import org.apache.shardingsphere.distsql.parser.autogen.CommonDistSQLStatementPa
 import org.apache.shardingsphere.distsql.parser.autogen.CommonDistSQLStatementParser.ApplyDistSQLContext;
 import org.apache.shardingsphere.distsql.parser.autogen.CommonDistSQLStatementParser.CacheOptionContext;
 import org.apache.shardingsphere.distsql.parser.autogen.CommonDistSQLStatementParser.ClearHintContext;
-import org.apache.shardingsphere.distsql.parser.autogen.CommonDistSQLStatementParser.CountInstanceRulesContext;
-import org.apache.shardingsphere.distsql.parser.autogen.CommonDistSQLStatementParser.CountSchemaRulesContext;
+import org.apache.shardingsphere.distsql.parser.autogen.CommonDistSQLStatementParser.CountDatabaseRulesContext;
+import org.apache.shardingsphere.distsql.parser.autogen.CommonDistSQLStatementParser.CountSingleTableRuleContext;
 import org.apache.shardingsphere.distsql.parser.autogen.CommonDistSQLStatementParser.CreateDefaultSingleTableRuleContext;
 import org.apache.shardingsphere.distsql.parser.autogen.CommonDistSQLStatementParser.CreateTrafficRuleContext;
 import org.apache.shardingsphere.distsql.parser.autogen.CommonDistSQLStatementParser.DataSourceContext;
+import org.apache.shardingsphere.distsql.parser.autogen.CommonDistSQLStatementParser.DatabaseNameContext;
 import org.apache.shardingsphere.distsql.parser.autogen.CommonDistSQLStatementParser.DisableInstanceContext;
 import org.apache.shardingsphere.distsql.parser.autogen.CommonDistSQLStatementParser.DiscardDistSQLContext;
 import org.apache.shardingsphere.distsql.parser.autogen.CommonDistSQLStatementParser.DropDefaultSingleTableRuleContext;
 import org.apache.shardingsphere.distsql.parser.autogen.CommonDistSQLStatementParser.DropResourceContext;
 import org.apache.shardingsphere.distsql.parser.autogen.CommonDistSQLStatementParser.DropTrafficRuleContext;
 import org.apache.shardingsphere.distsql.parser.autogen.CommonDistSQLStatementParser.EnableInstanceContext;
-import org.apache.shardingsphere.distsql.parser.autogen.CommonDistSQLStatementParser.ExportSchemaConfigurationContext;
-import org.apache.shardingsphere.distsql.parser.autogen.CommonDistSQLStatementParser.ImportSchemaConfigurationContext;
-import org.apache.shardingsphere.distsql.parser.autogen.CommonDistSQLStatementParser.InstanceDefinationContext;
+import org.apache.shardingsphere.distsql.parser.autogen.CommonDistSQLStatementParser.ExportDatabaseConfigurationContext;
+import org.apache.shardingsphere.distsql.parser.autogen.CommonDistSQLStatementParser.FromSegmentContext;
+import org.apache.shardingsphere.distsql.parser.autogen.CommonDistSQLStatementParser.ImportDatabaseConfigurationContext;
 import org.apache.shardingsphere.distsql.parser.autogen.CommonDistSQLStatementParser.InstanceIdContext;
 import org.apache.shardingsphere.distsql.parser.autogen.CommonDistSQLStatementParser.LabelDefinitionContext;
 import org.apache.shardingsphere.distsql.parser.autogen.CommonDistSQLStatementParser.LabelInstanceContext;
@@ -56,7 +57,6 @@ import org.apache.shardingsphere.distsql.parser.autogen.CommonDistSQLStatementPa
 import org.apache.shardingsphere.distsql.parser.autogen.CommonDistSQLStatementParser.PropertyContext;
 import org.apache.shardingsphere.distsql.parser.autogen.CommonDistSQLStatementParser.ProviderDefinitionContext;
 import org.apache.shardingsphere.distsql.parser.autogen.CommonDistSQLStatementParser.RefreshTableMetadataContext;
-import org.apache.shardingsphere.distsql.parser.autogen.CommonDistSQLStatementParser.SchemaNameContext;
 import org.apache.shardingsphere.distsql.parser.autogen.CommonDistSQLStatementParser.SetVariableContext;
 import org.apache.shardingsphere.distsql.parser.autogen.CommonDistSQLStatementParser.ShowAllVariablesContext;
 import org.apache.shardingsphere.distsql.parser.autogen.CommonDistSQLStatementParser.ShowAuthorityRuleContext;
@@ -81,39 +81,40 @@ import org.apache.shardingsphere.distsql.parser.segment.CacheOptionSegment;
 import org.apache.shardingsphere.distsql.parser.segment.DataSourceSegment;
 import org.apache.shardingsphere.distsql.parser.segment.TrafficRuleSegment;
 import org.apache.shardingsphere.distsql.parser.segment.TransactionProviderSegment;
-import org.apache.shardingsphere.distsql.parser.statement.ral.common.hint.ClearHintStatement;
-import org.apache.shardingsphere.distsql.parser.statement.ral.common.queryable.CountInstanceRulesStatement;
-import org.apache.shardingsphere.distsql.parser.statement.ral.common.queryable.ExportSchemaConfigurationStatement;
-import org.apache.shardingsphere.distsql.parser.statement.ral.common.queryable.ShowAuthorityRuleStatement;
-import org.apache.shardingsphere.distsql.parser.statement.ral.common.queryable.ShowInstanceModeStatement;
-import org.apache.shardingsphere.distsql.parser.statement.ral.common.queryable.ShowInstanceStatement;
-import org.apache.shardingsphere.distsql.parser.statement.ral.common.queryable.ShowSQLParserRuleStatement;
-import org.apache.shardingsphere.distsql.parser.statement.ral.common.queryable.ShowTableMetadataStatement;
-import org.apache.shardingsphere.distsql.parser.statement.ral.common.queryable.ShowTrafficRulesStatement;
-import org.apache.shardingsphere.distsql.parser.statement.ral.common.queryable.ShowTransactionRuleStatement;
-import org.apache.shardingsphere.distsql.parser.statement.ral.common.queryable.ShowVariableStatement;
-import org.apache.shardingsphere.distsql.parser.statement.ral.common.updatable.AlterInstanceStatement;
-import org.apache.shardingsphere.distsql.parser.statement.ral.common.updatable.AlterSQLParserRuleStatement;
-import org.apache.shardingsphere.distsql.parser.statement.ral.common.updatable.AlterTrafficRuleStatement;
-import org.apache.shardingsphere.distsql.parser.statement.ral.common.updatable.AlterTransactionRuleStatement;
-import org.apache.shardingsphere.distsql.parser.statement.ral.common.updatable.ApplyDistSQLStatement;
-import org.apache.shardingsphere.distsql.parser.statement.ral.common.updatable.CreateTrafficRuleStatement;
-import org.apache.shardingsphere.distsql.parser.statement.ral.common.updatable.DiscardDistSQLStatement;
-import org.apache.shardingsphere.distsql.parser.statement.ral.common.updatable.DropTrafficRuleStatement;
-import org.apache.shardingsphere.distsql.parser.statement.ral.common.updatable.ImportSchemaConfigurationStatement;
-import org.apache.shardingsphere.distsql.parser.statement.ral.common.updatable.LabelInstanceStatement;
-import org.apache.shardingsphere.distsql.parser.statement.ral.common.updatable.PrepareDistSQLStatement;
-import org.apache.shardingsphere.distsql.parser.statement.ral.common.updatable.RefreshTableMetadataStatement;
-import org.apache.shardingsphere.distsql.parser.statement.ral.common.updatable.SetInstanceStatusStatement;
-import org.apache.shardingsphere.distsql.parser.statement.ral.common.updatable.SetVariableStatement;
-import org.apache.shardingsphere.distsql.parser.statement.ral.common.updatable.UnlabelInstanceStatement;
+import org.apache.shardingsphere.distsql.parser.statement.ral.hint.ClearHintStatement;
+import org.apache.shardingsphere.distsql.parser.statement.ral.queryable.ExportDatabaseConfigurationStatement;
+import org.apache.shardingsphere.distsql.parser.statement.ral.queryable.ShowAllVariableStatement;
+import org.apache.shardingsphere.distsql.parser.statement.ral.queryable.ShowAuthorityRuleStatement;
+import org.apache.shardingsphere.distsql.parser.statement.ral.queryable.ShowInstanceModeStatement;
+import org.apache.shardingsphere.distsql.parser.statement.ral.queryable.ShowInstanceStatement;
+import org.apache.shardingsphere.distsql.parser.statement.ral.queryable.ShowSQLParserRuleStatement;
+import org.apache.shardingsphere.distsql.parser.statement.ral.queryable.ShowTableMetadataStatement;
+import org.apache.shardingsphere.distsql.parser.statement.ral.queryable.ShowTrafficRulesStatement;
+import org.apache.shardingsphere.distsql.parser.statement.ral.queryable.ShowTransactionRuleStatement;
+import org.apache.shardingsphere.distsql.parser.statement.ral.queryable.ShowVariableStatement;
+import org.apache.shardingsphere.distsql.parser.statement.ral.updatable.AlterInstanceStatement;
+import org.apache.shardingsphere.distsql.parser.statement.ral.updatable.AlterSQLParserRuleStatement;
+import org.apache.shardingsphere.distsql.parser.statement.ral.updatable.AlterTrafficRuleStatement;
+import org.apache.shardingsphere.distsql.parser.statement.ral.updatable.AlterTransactionRuleStatement;
+import org.apache.shardingsphere.distsql.parser.statement.ral.updatable.ApplyDistSQLStatement;
+import org.apache.shardingsphere.distsql.parser.statement.ral.updatable.CreateTrafficRuleStatement;
+import org.apache.shardingsphere.distsql.parser.statement.ral.updatable.DiscardDistSQLStatement;
+import org.apache.shardingsphere.distsql.parser.statement.ral.updatable.DropTrafficRuleStatement;
+import org.apache.shardingsphere.distsql.parser.statement.ral.updatable.ImportDatabaseConfigurationStatement;
+import org.apache.shardingsphere.distsql.parser.statement.ral.updatable.LabelInstanceStatement;
+import org.apache.shardingsphere.distsql.parser.statement.ral.updatable.PrepareDistSQLStatement;
+import org.apache.shardingsphere.distsql.parser.statement.ral.updatable.RefreshTableMetadataStatement;
+import org.apache.shardingsphere.distsql.parser.statement.ral.updatable.SetInstanceStatusStatement;
+import org.apache.shardingsphere.distsql.parser.statement.ral.updatable.SetVariableStatement;
+import org.apache.shardingsphere.distsql.parser.statement.ral.updatable.UnlabelInstanceStatement;
+import org.apache.shardingsphere.distsql.parser.statement.rdl.alter.AlterDefaultSingleTableRuleStatement;
 import org.apache.shardingsphere.distsql.parser.statement.rdl.alter.AlterResourceStatement;
 import org.apache.shardingsphere.distsql.parser.statement.rdl.create.AddResourceStatement;
-import org.apache.shardingsphere.distsql.parser.statement.rdl.create.AlterDefaultSingleTableRuleStatement;
 import org.apache.shardingsphere.distsql.parser.statement.rdl.create.CreateDefaultSingleTableRuleStatement;
 import org.apache.shardingsphere.distsql.parser.statement.rdl.drop.DropDefaultSingleTableRuleStatement;
 import org.apache.shardingsphere.distsql.parser.statement.rdl.drop.DropResourceStatement;
-import org.apache.shardingsphere.distsql.parser.statement.rql.show.CountSchemaRulesStatement;
+import org.apache.shardingsphere.distsql.parser.statement.rql.show.CountDatabaseRulesStatement;
+import org.apache.shardingsphere.distsql.parser.statement.rql.show.CountSingleTableRuleStatement;
 import org.apache.shardingsphere.distsql.parser.statement.rql.show.ShowResourcesStatement;
 import org.apache.shardingsphere.distsql.parser.statement.rql.show.ShowRulesUsedResourceStatement;
 import org.apache.shardingsphere.distsql.parser.statement.rql.show.ShowSingleTableRulesStatement;
@@ -121,15 +122,12 @@ import org.apache.shardingsphere.distsql.parser.statement.rql.show.ShowSingleTab
 import org.apache.shardingsphere.distsql.parser.statement.rql.show.ShowUnusedResourcesStatement;
 import org.apache.shardingsphere.sql.parser.api.visitor.ASTNode;
 import org.apache.shardingsphere.sql.parser.api.visitor.SQLVisitor;
-import org.apache.shardingsphere.sql.parser.sql.common.segment.generic.SchemaSegment;
+import org.apache.shardingsphere.sql.parser.sql.common.segment.generic.DatabaseSegment;
 import org.apache.shardingsphere.sql.parser.sql.common.value.identifier.IdentifierValue;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
@@ -150,8 +148,8 @@ public final class CommonDistSQLStatementVisitor extends CommonDistSQLStatementB
     
     @Override
     public ASTNode visitShowTableMetadata(final ShowTableMetadataContext ctx) {
-        Collection<String> tableNames = ctx.tableName().stream().map(each -> getIdentifierValue(each)).collect(Collectors.toSet());
-        return new ShowTableMetadataStatement(tableNames, null == ctx.schemaName() ? null : (SchemaSegment) visit(ctx.schemaName()));
+        Collection<String> tableNames = ctx.tableName().stream().map(this::getIdentifierValue).collect(Collectors.toSet());
+        return new ShowTableMetadataStatement(tableNames, null == ctx.databaseName() ? null : (DatabaseSegment) visit(ctx.databaseName()));
     }
     
     @Override
@@ -169,8 +167,8 @@ public final class CommonDistSQLStatementVisitor extends CommonDistSQLStatementB
             dbName = ctx.simpleSource().dbName().getText();
         }
         String password = null == ctx.password() ? "" : getPassword(ctx.password());
-        Properties properties = getProperties(ctx.propertiesDefinition());
-        return new DataSourceSegment(getIdentifierValue(ctx.dataSourceName()), url, hostname, port, dbName, ctx.user().getText(), password, properties);
+        Properties props = getProperties(ctx.propertiesDefinition());
+        return new DataSourceSegment(getIdentifierValue(ctx.dataSourceName()), url, hostname, port, dbName, ctx.user().getText(), password, props);
     }
     
     private String getPassword(final List<PasswordContext> passwordContexts) {
@@ -189,60 +187,33 @@ public final class CommonDistSQLStatementVisitor extends CommonDistSQLStatementB
     
     @Override
     public ASTNode visitEnableInstance(final EnableInstanceContext ctx) {
-        return buildSetInstanceStatusStatement(ctx.ENABLE().getText().toUpperCase(), ctx.instanceDefination(), ctx.instanceId());
+        return buildSetInstanceStatusStatement(ctx.ENABLE().getText().toUpperCase(), ctx.instanceId());
     }
     
     @Override
     public ASTNode visitDisableInstance(final DisableInstanceContext ctx) {
-        return buildSetInstanceStatusStatement(ctx.DISABLE().getText().toUpperCase(), ctx.instanceDefination(), ctx.instanceId());
+        return buildSetInstanceStatusStatement(ctx.DISABLE().getText().toUpperCase(), ctx.instanceId());
     }
     
     @Override
     public ASTNode visitLabelInstance(final LabelInstanceContext ctx) {
-        String ip;
-        String port;
-        if (null != ctx.instanceDefination()) {
-            ip = getIdentifierValue(ctx.instanceDefination().ip());
-            port = getIdentifierValue(ctx.instanceDefination().port());
-        } else {
-            ip = getIdentifierValue(ctx.instanceId().ip());
-            port = getIdentifierValue(ctx.instanceId().port());
-        }
-        LinkedList<String> labels = ctx.label().stream().map(this::getIdentifierValue).collect(Collectors.toCollection(LinkedList::new));
-        return new LabelInstanceStatement(ctx.RELABEL() != null, ip, port, labels);
+        Collection<String> labels = ctx.label().stream().map(this::getIdentifierValue).collect(Collectors.toList());
+        return new LabelInstanceStatement(ctx.RELABEL() != null, getIdentifierValue(ctx.instanceId()), labels);
     }
     
     @Override
     public ASTNode visitUnlabelInstance(final UnlabelInstanceContext ctx) {
-        String ip;
-        String port;
-        if (null != ctx.instanceDefination()) {
-            ip = getIdentifierValue(ctx.instanceDefination().ip());
-            port = getIdentifierValue(ctx.instanceDefination().port());
-        } else {
-            ip = getIdentifierValue(ctx.instanceId().ip());
-            port = getIdentifierValue(ctx.instanceId().port());
-        }
-        Collection<String> labels = ctx.label().stream().map(this::getIdentifierValue).collect(Collectors.toCollection(LinkedList::new));
-        return new UnlabelInstanceStatement(ip, port, labels);
+        Collection<String> labels = ctx.label().stream().map(this::getIdentifierValue).collect(Collectors.toList());
+        return new UnlabelInstanceStatement(getIdentifierValue(ctx.instanceId()), labels);
     }
     
-    private SetInstanceStatusStatement buildSetInstanceStatusStatement(final String status, final InstanceDefinationContext instanceDefinationContext, final InstanceIdContext instanceIdContext) {
-        String ip;
-        String port;
-        if (null != instanceDefinationContext) {
-            ip = getIdentifierValue(instanceDefinationContext.ip());
-            port = getIdentifierValue(instanceDefinationContext.port());
-        } else {
-            ip = getIdentifierValue(instanceIdContext.ip());
-            port = getIdentifierValue(instanceIdContext.port());
-        }
-        return new SetInstanceStatusStatement(status, ip, port);
+    private SetInstanceStatusStatement buildSetInstanceStatusStatement(final String status, final InstanceIdContext instanceIdContext) {
+        return new SetInstanceStatusStatement(status, getIdentifierValue(instanceIdContext));
     }
     
     @Override
-    public ASTNode visitCountInstanceRules(final CountInstanceRulesContext ctx) {
-        return new CountInstanceRulesStatement();
+    public ASTNode visitCountSingleTableRule(final CountSingleTableRuleContext ctx) {
+        return new CountSingleTableRuleStatement(null == ctx.databaseName() ? null : (DatabaseSegment) visit(ctx.databaseName()));
     }
     
     @Override
@@ -251,8 +222,8 @@ public final class CommonDistSQLStatementVisitor extends CommonDistSQLStatementB
     }
     
     @Override
-    public ASTNode visitCountSchemaRules(final CountSchemaRulesContext ctx) {
-        return new CountSchemaRulesStatement(null == ctx.schemaName() ? null : (SchemaSegment) visit(ctx.schemaName()));
+    public ASTNode visitCountDatabaseRules(final CountDatabaseRulesContext ctx) {
+        return new CountDatabaseRulesStatement(null == ctx.databaseName() ? null : (DatabaseSegment) visit(ctx.databaseName()));
     }
     
     @Override
@@ -267,7 +238,7 @@ public final class CommonDistSQLStatementVisitor extends CommonDistSQLStatementB
     
     @Override
     public ASTNode visitDropDefaultSingleTableRule(final DropDefaultSingleTableRuleContext ctx) {
-        return new DropDefaultSingleTableRuleStatement(null != ctx.existClause());
+        return new DropDefaultSingleTableRuleStatement(null != ctx.ifExists());
     }
     
     private Properties getProperties(final PropertiesDefinitionContext ctx) {
@@ -275,8 +246,7 @@ public final class CommonDistSQLStatementVisitor extends CommonDistSQLStatementB
         if (null == ctx || null == ctx.properties()) {
             return result;
         }
-        List<PropertyContext> properties = ctx.properties().property();
-        for (PropertyContext each : properties) {
+        for (PropertyContext each : ctx.properties().property()) {
             result.setProperty(IdentifierValue.getQuotedContent(each.key.getText()), IdentifierValue.getQuotedContent(each.value.getText()));
         }
         return result;
@@ -285,23 +255,23 @@ public final class CommonDistSQLStatementVisitor extends CommonDistSQLStatementB
     @Override
     public ASTNode visitDropResource(final DropResourceContext ctx) {
         boolean ignoreSingleTables = null != ctx.ignoreSingleTables();
-        return new DropResourceStatement(ctx.existClause() != null,
+        return new DropResourceStatement(ctx.ifExists() != null,
                 ctx.IDENTIFIER().stream().map(ParseTree::getText).map(each -> new IdentifierValue(each).getValue()).collect(Collectors.toList()), ignoreSingleTables);
     }
     
     @Override
     public ASTNode visitShowResources(final ShowResourcesContext ctx) {
-        return new ShowResourcesStatement(null == ctx.schemaName() ? null : (SchemaSegment) visit(ctx.schemaName()));
+        return new ShowResourcesStatement(null == ctx.databaseName() ? null : (DatabaseSegment) visit(ctx.databaseName()));
     }
     
     @Override
     public ASTNode visitShowUnusedResources(final ShowUnusedResourcesContext ctx) {
-        return new ShowUnusedResourcesStatement(null == ctx.schemaName() ? null : (SchemaSegment) visit(ctx.schemaName()));
+        return new ShowUnusedResourcesStatement(null == ctx.databaseName() ? null : (DatabaseSegment) visit(ctx.databaseName()));
     }
     
     @Override
-    public ASTNode visitSchemaName(final SchemaNameContext ctx) {
-        return new SchemaSegment(ctx.getStart().getStartIndex(), ctx.getStop().getStopIndex(), new IdentifierValue(ctx.getText()));
+    public ASTNode visitDatabaseName(final DatabaseNameContext ctx) {
+        return new DatabaseSegment(ctx.getStart().getStartIndex(), ctx.getStop().getStopIndex(), new IdentifierValue(ctx.getText()));
     }
     
     @Override
@@ -311,13 +281,12 @@ public final class CommonDistSQLStatementVisitor extends CommonDistSQLStatementB
     
     @Override
     public ASTNode visitShowSingleTableRules(final ShowSingleTableRulesContext ctx) {
-        return new ShowSingleTableRulesStatement(null == ctx.schemaName() ? null : (SchemaSegment) visit(ctx.schemaName()));
+        return new ShowSingleTableRulesStatement(null == ctx.databaseName() ? null : (DatabaseSegment) visit(ctx.databaseName()));
     }
     
     @Override
     public ASTNode visitShowSingleTable(final ShowSingleTableContext ctx) {
-        return new ShowSingleTableStatement(null == ctx.table() ? null : getIdentifierValue(ctx.table().tableName()),
-                null == ctx.schemaName() ? null : (SchemaSegment) visit(ctx.schemaName()));
+        return new ShowSingleTableStatement(null == ctx.table() ? null : getIdentifierValue(ctx.table().tableName()), null == ctx.databaseName() ? null : (DatabaseSegment) visit(ctx.databaseName()));
     }
     
     @Override
@@ -327,14 +296,7 @@ public final class CommonDistSQLStatementVisitor extends CommonDistSQLStatementB
     
     @Override
     public ASTNode visitShowAllVariables(final ShowAllVariablesContext ctx) {
-        return new ShowVariableStatement();
-    }
-    
-    private String getIdentifierValue(final ParseTree context) {
-        if (null == context) {
-            return null;
-        }
-        return new IdentifierValue(context.getText()).getValue();
+        return new ShowAllVariableStatement();
     }
     
     @Override
@@ -344,10 +306,18 @@ public final class CommonDistSQLStatementVisitor extends CommonDistSQLStatementB
     
     @Override
     public ASTNode visitRefreshTableMetadata(final RefreshTableMetadataContext ctx) {
-        RefreshTableMetadataStatement result = new RefreshTableMetadataStatement();
-        result.setTableName(null == ctx.refreshScope() ? Optional.empty() : Optional.ofNullable(getIdentifierValue(ctx.refreshScope().tableName())));
-        result.setResourceName(null == ctx.refreshScope() ? Optional.empty() : Optional.ofNullable(getIdentifierValue(ctx.refreshScope().resourceName())));
-        return result;
+        if (null == ctx.refreshScope()) {
+            return new RefreshTableMetadataStatement();
+        }
+        String resourceName = null;
+        String schemaName = null;
+        String tableName = getIdentifierValue(ctx.refreshScope().tableName());
+        if (null != ctx.refreshScope().fromSegment()) {
+            FromSegmentContext fromSegment = ctx.refreshScope().fromSegment();
+            resourceName = getIdentifierValue(fromSegment.resourceName());
+            schemaName = null == fromSegment.schemaName() ? null : getIdentifierValue(fromSegment.schemaName());
+        }
+        return new RefreshTableMetadataStatement(tableName, resourceName, schemaName);
     }
     
     @Override
@@ -367,12 +337,8 @@ public final class CommonDistSQLStatementVisitor extends CommonDistSQLStatementB
     
     @Override
     public ASTNode visitDropTrafficRule(final DropTrafficRuleContext ctx) {
-        DropTrafficRuleStatement result = new DropTrafficRuleStatement();
-        if (null != ctx.ruleName()) {
-            result.setRuleNames(ctx.ruleName().stream().map(each -> getIdentifierValue(each)).collect(Collectors.toSet()));
-        }
-        result.setContainsIfExistClause(null != ctx.ifExists());
-        return result;
+        Collection<String> ruleNames = null == ctx.ruleName() ? null : ctx.ruleName().stream().map(this::getIdentifierValue).collect(Collectors.toSet());
+        return new DropTrafficRuleStatement(null != ctx.ifExists(), ruleNames);
     }
     
     @Override
@@ -384,9 +350,7 @@ public final class CommonDistSQLStatementVisitor extends CommonDistSQLStatementB
     
     @Override
     public ASTNode visitProviderDefinition(final ProviderDefinitionContext ctx) {
-        String providerType = getIdentifierValue(ctx.providerName());
-        Properties props = getProperties(ctx.propertiesDefinition());
-        return new TransactionProviderSegment(providerType, props);
+        return new TransactionProviderSegment(getIdentifierValue(ctx.providerName()), getProperties(ctx.propertiesDefinition()));
     }
     
     @Override
@@ -401,39 +365,32 @@ public final class CommonDistSQLStatementVisitor extends CommonDistSQLStatementB
     
     @Override
     public ASTNode visitSqlParserRuleDefinition(final SqlParserRuleDefinitionContext ctx) {
-        AlterSQLParserRuleStatement result = new AlterSQLParserRuleStatement();
-        result.setSqlCommentParseEnable(null == ctx.sqlCommentParseEnable() ? null : Boolean.parseBoolean(getIdentifierValue(ctx.sqlCommentParseEnable())));
-        result.setParseTreeCache(null == ctx.parseTreeCache() ? null : visitCacheOption(ctx.parseTreeCache().cacheOption()));
-        result.setSqlStatementCache(null == ctx.sqlStatementCache() ? null : visitCacheOption(ctx.sqlStatementCache().cacheOption()));
-        return result;
+        Boolean sqlCommentParseEnable = null == ctx.sqlCommentParseEnable() ? null : Boolean.parseBoolean(getIdentifierValue(ctx.sqlCommentParseEnable()));
+        CacheOptionSegment parseTreeCache = null == ctx.parseTreeCache() ? null : visitCacheOption(ctx.parseTreeCache().cacheOption());
+        CacheOptionSegment sqlStatementCache = null == ctx.sqlStatementCache() ? null : visitCacheOption(ctx.sqlStatementCache().cacheOption());
+        return new AlterSQLParserRuleStatement(sqlCommentParseEnable, parseTreeCache, sqlStatementCache);
     }
     
     @Override
     public CacheOptionSegment visitCacheOption(final CacheOptionContext ctx) {
         return new CacheOptionSegment(
                 null == ctx.initialCapacity() ? null : Integer.parseInt(getIdentifierValue(ctx.initialCapacity())),
-                null == ctx.maximumSize() ? null : Long.parseLong(getIdentifierValue(ctx.maximumSize())),
-                null == ctx.concurrencyLevel() ? null : Integer.parseInt(getIdentifierValue(ctx.concurrencyLevel()))
-        );
+                null == ctx.maximumSize() ? null : Long.parseLong(getIdentifierValue(ctx.maximumSize())));
     }
     
     @Override
     public ASTNode visitCreateTrafficRule(final CreateTrafficRuleContext ctx) {
-        return new CreateTrafficRuleStatement(ctx.trafficRuleDefinition().stream().map(each -> (TrafficRuleSegment) visit(each)).collect(Collectors.toCollection(LinkedList::new)));
+        return new CreateTrafficRuleStatement(ctx.trafficRuleDefinition().stream().map(each -> (TrafficRuleSegment) visit(each)).collect(Collectors.toList()));
     }
     
     @Override
     public ASTNode visitAlterTrafficRule(final AlterTrafficRuleContext ctx) {
-        return new AlterTrafficRuleStatement(ctx.trafficRuleDefinition().stream().map(each -> (TrafficRuleSegment) visit(each)).collect(Collectors.toCollection(LinkedList::new)));
+        return new AlterTrafficRuleStatement(ctx.trafficRuleDefinition().stream().map(each -> (TrafficRuleSegment) visit(each)).collect(Collectors.toList()));
     }
     
     @Override
     public ASTNode visitShowTrafficRules(final ShowTrafficRulesContext ctx) {
-        ShowTrafficRulesStatement result = new ShowTrafficRulesStatement();
-        if (null != ctx.ruleName()) {
-            result.setRuleName(getIdentifierValue(ctx.ruleName()));
-        }
-        return result;
+        return new ShowTrafficRulesStatement(null == ctx.ruleName() ? null : getIdentifierValue(ctx.ruleName()));
     }
     
     @Override
@@ -459,12 +416,12 @@ public final class CommonDistSQLStatementVisitor extends CommonDistSQLStatementB
         return new AlgorithmSegment(getIdentifierValue(ctx.typeName()), buildProperties(ctx.algorithmProperties()));
     }
     
-    private Properties buildProperties(final AlgorithmPropertiesContext algorithmProperties) {
+    private Properties buildProperties(final AlgorithmPropertiesContext algorithmProps) {
         Properties result = new Properties();
-        if (null == algorithmProperties) {
+        if (null == algorithmProps) {
             return result;
         }
-        for (AlgorithmPropertyContext each : algorithmProperties.algorithmProperty()) {
+        for (AlgorithmPropertyContext each : algorithmProps.algorithmProperty()) {
             result.setProperty(IdentifierValue.getQuotedContent(each.key.getText()), IdentifierValue.getQuotedContent(each.value.getText()));
         }
         return result;
@@ -474,19 +431,17 @@ public final class CommonDistSQLStatementVisitor extends CommonDistSQLStatementB
         if (null == labelDefinition) {
             return Collections.emptyList();
         }
-        return labelDefinition.label().stream().map(this::getIdentifierValue).collect(Collectors.toCollection(LinkedList::new));
+        return labelDefinition.label().stream().map(this::getIdentifierValue).collect(Collectors.toList());
     }
     
     @Override
-    public ASTNode visitExportSchemaConfiguration(final ExportSchemaConfigurationContext ctx) {
-        return new ExportSchemaConfigurationStatement(Objects.nonNull(ctx.schemaName()) ? (SchemaSegment) visit(ctx.schemaName()) : null, Optional.ofNullable(getIdentifierValue(ctx.filePath())));
+    public ASTNode visitExportDatabaseConfiguration(final ExportDatabaseConfigurationContext ctx) {
+        return new ExportDatabaseConfigurationStatement(null == ctx.databaseName() ? null : (DatabaseSegment) visit(ctx.databaseName()), getIdentifierValue(ctx.filePath()));
     }
     
     @Override
     public ASTNode visitShowRulesUsedResource(final ShowRulesUsedResourceContext ctx) {
-        return new ShowRulesUsedResourceStatement(
-                null == ctx.resourceName() ? Optional.empty() : Optional.of(getIdentifierValue(ctx.resourceName())),
-                null == ctx.schemaName() ? null : (SchemaSegment) visit(ctx.schemaName()));
+        return new ShowRulesUsedResourceStatement(getIdentifierValue(ctx.resourceName()), null == ctx.databaseName() ? null : (DatabaseSegment) visit(ctx.databaseName()));
     }
     
     @Override
@@ -505,9 +460,11 @@ public final class CommonDistSQLStatementVisitor extends CommonDistSQLStatementB
     }
     
     @Override
-    public ASTNode visitImportSchemaConfiguration(final ImportSchemaConfigurationContext ctx) {
-        ImportSchemaConfigurationStatement result = new ImportSchemaConfigurationStatement();
-        result.setFilePath(Optional.ofNullable(getIdentifierValue(ctx.filePath())));
-        return result;
+    public ASTNode visitImportDatabaseConfiguration(final ImportDatabaseConfigurationContext ctx) {
+        return new ImportDatabaseConfigurationStatement(getIdentifierValue(ctx.filePath()));
+    }
+    
+    private String getIdentifierValue(final ParseTree context) {
+        return null == context ? null : new IdentifierValue(context.getText()).getValue();
     }
 }

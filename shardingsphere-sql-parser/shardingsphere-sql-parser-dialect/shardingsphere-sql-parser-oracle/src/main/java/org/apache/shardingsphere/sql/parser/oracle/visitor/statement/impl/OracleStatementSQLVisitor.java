@@ -17,11 +17,11 @@
 
 package org.apache.shardingsphere.sql.parser.oracle.visitor.statement.impl;
 
-import com.google.common.base.Joiner;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.antlr.v4.runtime.ParserRuleContext;
+import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.misc.Interval;
 import org.antlr.v4.runtime.tree.TerminalNode;
 import org.apache.shardingsphere.sql.parser.api.visitor.ASTNode;
@@ -45,7 +45,7 @@ import org.apache.shardingsphere.sql.parser.autogen.OracleStatementParser.Functi
 import org.apache.shardingsphere.sql.parser.autogen.OracleStatementParser.HexadecimalLiteralsContext;
 import org.apache.shardingsphere.sql.parser.autogen.OracleStatementParser.IdentifierContext;
 import org.apache.shardingsphere.sql.parser.autogen.OracleStatementParser.IndexNameContext;
-import org.apache.shardingsphere.sql.parser.autogen.OracleStatementParser.IndextypeNameContext;
+import org.apache.shardingsphere.sql.parser.autogen.OracleStatementParser.IndexTypeNameContext;
 import org.apache.shardingsphere.sql.parser.autogen.OracleStatementParser.LiteralsContext;
 import org.apache.shardingsphere.sql.parser.autogen.OracleStatementParser.NullValueLiteralsContext;
 import org.apache.shardingsphere.sql.parser.autogen.OracleStatementParser.NumberLiteralsContext;
@@ -70,8 +70,9 @@ import org.apache.shardingsphere.sql.parser.sql.common.constant.AggregationType;
 import org.apache.shardingsphere.sql.parser.sql.common.constant.OrderDirection;
 import org.apache.shardingsphere.sql.parser.sql.common.constant.ParameterMarkerType;
 import org.apache.shardingsphere.sql.parser.sql.common.segment.ddl.constraint.ConstraintSegment;
+import org.apache.shardingsphere.sql.parser.sql.common.segment.ddl.index.IndexNameSegment;
 import org.apache.shardingsphere.sql.parser.sql.common.segment.ddl.index.IndexSegment;
-import org.apache.shardingsphere.sql.parser.sql.common.segment.ddl.index.IndextypeSegment;
+import org.apache.shardingsphere.sql.parser.sql.common.segment.ddl.index.IndexTypeSegment;
 import org.apache.shardingsphere.sql.parser.sql.common.segment.ddl.packages.PackageSegment;
 import org.apache.shardingsphere.sql.parser.sql.common.segment.ddl.type.TypeSegment;
 import org.apache.shardingsphere.sql.parser.sql.common.segment.dml.column.ColumnSegment;
@@ -209,15 +210,15 @@ public abstract class OracleStatementSQLVisitor extends OracleStatementBaseVisit
     public final ASTNode visitSchemaName(final SchemaNameContext ctx) {
         return visit(ctx.identifier());
     }
-
+    
     @Override
     public final ASTNode visitSynonymName(final SynonymNameContext ctx) {
         return visit(ctx.identifier());
     }
-
+    
     @Override
     public final ASTNode visitTableName(final TableNameContext ctx) {
-        SimpleTableSegment result = new SimpleTableSegment(new TableNameSegment(ctx.name().getStart().getStartIndex(), 
+        SimpleTableSegment result = new SimpleTableSegment(new TableNameSegment(ctx.name().getStart().getStartIndex(),
                 ctx.name().getStop().getStopIndex(), new IdentifierValue(ctx.name().identifier().getText())));
         OwnerContext owner = ctx.owner();
         if (null != owner) {
@@ -238,7 +239,7 @@ public abstract class OracleStatementSQLVisitor extends OracleStatementBaseVisit
     
     @Override
     public final ASTNode visitViewName(final ViewNameContext ctx) {
-        SimpleTableSegment result = new SimpleTableSegment(new TableNameSegment(ctx.name().getStart().getStartIndex(), 
+        SimpleTableSegment result = new SimpleTableSegment(new TableNameSegment(ctx.name().getStart().getStartIndex(),
                 ctx.name().getStop().getStopIndex(), new IdentifierValue(ctx.name().identifier().getText())));
         OwnerContext owner = ctx.owner();
         if (null != owner) {
@@ -249,9 +250,10 @@ public abstract class OracleStatementSQLVisitor extends OracleStatementBaseVisit
     
     @Override
     public final ASTNode visitIndexName(final IndexNameContext ctx) {
-        return new IndexSegment(ctx.getStart().getStartIndex(), ctx.getStop().getStopIndex(), (IdentifierValue) visit(ctx.name()));
+        IndexNameSegment indexName = new IndexNameSegment(ctx.start.getStartIndex(), ctx.stop.getStopIndex(), (IdentifierValue) visit(ctx.name()));
+        return new IndexSegment(ctx.getStart().getStartIndex(), ctx.getStop().getStopIndex(), indexName);
     }
-
+    
     @Override
     public final ASTNode visitFunction(final FunctionContext ctx) {
         return new FunctionSegment(ctx.getStart().getStartIndex(), ctx.getStop().getStopIndex(), ((IdentifierValue) visit(ctx.name())).getValue(), ctx.getText());
@@ -268,8 +270,8 @@ public abstract class OracleStatementSQLVisitor extends OracleStatementBaseVisit
     }
     
     @Override
-    public final ASTNode visitIndextypeName(final IndextypeNameContext ctx) {
-        return new IndextypeSegment(ctx.getStart().getStartIndex(), ctx.getStop().getStopIndex(), (IdentifierValue) visit(ctx.name()));
+    public final ASTNode visitIndexTypeName(final IndexTypeNameContext ctx) {
+        return new IndexTypeSegment(ctx.getStart().getStartIndex(), ctx.getStop().getStopIndex(), (IdentifierValue) visit(ctx.name()));
     }
     
     @Override
@@ -322,11 +324,27 @@ public abstract class OracleStatementSQLVisitor extends OracleStatementBaseVisit
     @Override
     public final ASTNode visitBooleanPrimary(final BooleanPrimaryContext ctx) {
         if (null != ctx.IS()) {
-            ExpressionSegment left = (ExpressionSegment) visit(ctx.booleanPrimary());
-            ExpressionSegment right = new LiteralExpressionSegment(ctx.IS().getSymbol().getStopIndex() + 1, ctx.stop.getStopIndex(), new Interval(ctx.IS().getSymbol().getStopIndex() + 1,
-                    ctx.stop.getStopIndex()));
-            String operator = "IS";
+            String rightText = "";
+            if (null != ctx.NOT()) {
+                rightText = rightText.concat(ctx.start.getInputStream().getText(new Interval(ctx.NOT().getSymbol().getStartIndex(),
+                        ctx.NOT().getSymbol().getStopIndex()))).concat(" ");
+            }
+            Token operatorToken = null;
+            if (null != ctx.NULL()) {
+                operatorToken = ctx.NULL().getSymbol();
+            }
+            if (null != ctx.TRUE()) {
+                operatorToken = ctx.TRUE().getSymbol();
+            }
+            if (null != ctx.FALSE()) {
+                operatorToken = ctx.FALSE().getSymbol();
+            }
+            int startIndex = null == operatorToken ? ctx.IS().getSymbol().getStopIndex() + 1 : operatorToken.getStartIndex();
+            rightText = rightText.concat(ctx.start.getInputStream().getText(new Interval(startIndex, ctx.stop.getStopIndex())));
+            ExpressionSegment right = new LiteralExpressionSegment(ctx.IS().getSymbol().getStopIndex() + 1, ctx.stop.getStopIndex(), rightText);
             String text = ctx.start.getInputStream().getText(new Interval(ctx.start.getStartIndex(), ctx.stop.getStopIndex()));
+            ExpressionSegment left = (ExpressionSegment) visit(ctx.booleanPrimary());
+            String operator = "IS";
             return new BinaryOperationExpression(ctx.start.getStartIndex(), ctx.stop.getStopIndex(), left, right, operator, text);
         }
         if (null != ctx.comparisonOperator() || null != ctx.SAFE_EQ_()) {
@@ -421,7 +439,7 @@ public abstract class OracleStatementSQLVisitor extends OracleStatementBaseVisit
         }
         if (astNode instanceof ParameterMarkerValue) {
             ParameterMarkerValue parameterMarker = (ParameterMarkerValue) astNode;
-            ParameterMarkerExpressionSegment segment = new ParameterMarkerExpressionSegment(context.start.getStartIndex(), context.stop.getStopIndex(), 
+            ParameterMarkerExpressionSegment segment = new ParameterMarkerExpressionSegment(context.start.getStartIndex(), context.stop.getStopIndex(),
                     parameterMarker.getValue(), parameterMarker.getType());
             parameterMarkerSegments.add(segment);
             return segment;
@@ -478,16 +496,29 @@ public abstract class OracleStatementSQLVisitor extends OracleStatementBaseVisit
     public final ASTNode visitAggregationFunction(final AggregationFunctionContext ctx) {
         String aggregationType = ctx.aggregationFunctionName().getText();
         return AggregationType.isAggregationType(aggregationType)
-                ? createAggregationSegment(ctx, aggregationType) : new ExpressionProjectionSegment(ctx.getStart().getStartIndex(), ctx.getStop().getStopIndex(), getOriginalText(ctx));
+                ? createAggregationSegment(ctx, aggregationType)
+                : new ExpressionProjectionSegment(ctx.getStart().getStartIndex(), ctx.getStop().getStopIndex(), getOriginalText(ctx));
     }
     
     private ASTNode createAggregationSegment(final AggregationFunctionContext ctx, final String aggregationType) {
         AggregationType type = AggregationType.valueOf(aggregationType.toUpperCase());
         String innerExpression = ctx.start.getInputStream().getText(new Interval(ctx.LP_().get(0).getSymbol().getStartIndex(), ctx.stop.getStopIndex()));
-        if (null == ctx.DISTINCT()) {
-            return new AggregationProjectionSegment(ctx.getStart().getStartIndex(), ctx.getStop().getStopIndex(), type, innerExpression);
+        if (null != ctx.DISTINCT()) {
+            AggregationDistinctProjectionSegment result = new AggregationDistinctProjectionSegment(ctx.getStart().getStartIndex(), ctx.getStop().getStopIndex(),
+                    type, innerExpression, getDistinctExpression(ctx));
+            result.getParameters().addAll(getExpressions(ctx));
+            return result;
         }
-        return new AggregationDistinctProjectionSegment(ctx.getStart().getStartIndex(), ctx.getStop().getStopIndex(), type, innerExpression, getDistinctExpression(ctx));
+        AggregationProjectionSegment result = new AggregationProjectionSegment(ctx.getStart().getStartIndex(), ctx.getStop().getStopIndex(), type, innerExpression);
+        result.getParameters().addAll(getExpressions(ctx));
+        return result;
+    }
+    
+    private Collection<ExpressionSegment> getExpressions(final AggregationFunctionContext ctx) {
+        if (null == ctx.expr()) {
+            return Collections.emptyList();
+        }
+        return Collections.singletonList((ExpressionSegment) visit(ctx.expr()));
     }
     
     private String getDistinctExpression(final AggregationFunctionContext ctx) {
@@ -543,7 +574,7 @@ public abstract class OracleStatementSQLVisitor extends OracleStatementBaseVisit
         for (int i = 0; i < ctx.getChildCount(); i++) {
             dataTypeNames.add(ctx.getChild(i).getText());
         }
-        return new KeywordValue(Joiner.on(" ").join(dataTypeNames));
+        return new KeywordValue(String.join(" ", dataTypeNames));
     }
     
     // TODO :FIXME, sql case id: insert_with_str_to_date

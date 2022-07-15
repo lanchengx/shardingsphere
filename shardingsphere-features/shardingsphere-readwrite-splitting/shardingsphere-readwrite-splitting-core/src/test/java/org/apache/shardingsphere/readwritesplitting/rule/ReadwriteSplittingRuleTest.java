@@ -17,12 +17,15 @@
 
 package org.apache.shardingsphere.readwritesplitting.rule;
 
-import com.google.common.collect.ImmutableMap;
 import org.apache.shardingsphere.infra.config.algorithm.ShardingSphereAlgorithmConfiguration;
-import org.apache.shardingsphere.infra.metadata.schema.QualifiedSchema;
-import org.apache.shardingsphere.infra.rule.event.impl.DataSourceNameDisabledEvent;
+import org.apache.shardingsphere.infra.metadata.database.schema.QualifiedDatabase;
+import org.apache.shardingsphere.mode.metadata.storage.StorageNodeDataSource;
+import org.apache.shardingsphere.mode.metadata.storage.StorageNodeRole;
+import org.apache.shardingsphere.mode.metadata.storage.StorageNodeStatus;
+import org.apache.shardingsphere.mode.metadata.storage.event.StorageNodeDataSourceChangedEvent;
 import org.apache.shardingsphere.readwritesplitting.api.ReadwriteSplittingRuleConfiguration;
 import org.apache.shardingsphere.readwritesplitting.api.rule.ReadwriteSplittingDataSourceRuleConfiguration;
+import org.apache.shardingsphere.readwritesplitting.api.strategy.StaticReadwriteSplittingStrategyConfiguration;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -35,18 +38,17 @@ import java.util.Properties;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertNotNull;
 
 public final class ReadwriteSplittingRuleTest {
     
     @Test(expected = IllegalArgumentException.class)
     public void assertNewWithEmptyDataSourceRule() {
-        new ReadwriteSplittingRule(new ReadwriteSplittingRuleConfiguration(Collections.emptyList(), Collections.emptyMap()));
+        new ReadwriteSplittingRule(new ReadwriteSplittingRuleConfiguration(Collections.emptyList(), Collections.emptyMap()), Collections.emptyList());
     }
     
     @Test
     public void assertFindDataSourceRule() {
-        Optional<ReadwriteSplittingDataSourceRule> actual = createReadwriteSplittingRule().findDataSourceRule("test_pr");
+        Optional<ReadwriteSplittingDataSourceRule> actual = createReadwriteSplittingRule().findDataSourceRule("readwrite");
         assertTrue(actual.isPresent());
         assertDataSourceRule(actual.get());
     }
@@ -57,58 +59,51 @@ public final class ReadwriteSplittingRuleTest {
     }
     
     private ReadwriteSplittingRule createReadwriteSplittingRule() {
-        Properties props = new Properties();
-        props.setProperty("write-data-source-name", "write_ds");
-        props.setProperty("read-data-source-names", "read_ds_0,read_ds_1");
         ReadwriteSplittingDataSourceRuleConfiguration config =
-                new ReadwriteSplittingDataSourceRuleConfiguration("test_pr", "Static", props, "random");
+                new ReadwriteSplittingDataSourceRuleConfiguration("readwrite", new StaticReadwriteSplittingStrategyConfiguration("write_ds", Arrays.asList("read_ds_0", "read_ds_1")), null, "random");
         return new ReadwriteSplittingRule(new ReadwriteSplittingRuleConfiguration(
-                Collections.singleton(config), ImmutableMap.of("random", new ShardingSphereAlgorithmConfiguration("RANDOM", new Properties()))));
+                Collections.singleton(config), Collections.singletonMap("random", new ShardingSphereAlgorithmConfiguration("RANDOM", new Properties()))), Collections.emptyList());
     }
     
     private void assertDataSourceRule(final ReadwriteSplittingDataSourceRule actual) {
-        assertThat(actual.getName(), is("test_pr"));
-        assertNotNull(actual.getReadwriteSplittingType().getProps());
-        Properties props = actual.getReadwriteSplittingType().getProps();
-        assertThat(props.getProperty("write-data-source-name"), is("write_ds"));
-        assertThat(props.getProperty("read-data-source-names"), is("read_ds_0,read_ds_1"));
+        assertThat(actual.getName(), is("readwrite"));
+        assertThat(actual.getReadwriteSplittingStrategy().getWriteDataSource(), is("write_ds"));
+        assertThat(actual.getReadwriteSplittingStrategy().getReadDataSources(), is(Arrays.asList("read_ds_0", "read_ds_1")));
         assertThat(actual.getLoadBalancer().getType(), is("RANDOM"));
     }
     
     @Test
     public void assertUpdateRuleStatusWithNotExistDataSource() {
         ReadwriteSplittingRule readwriteSplittingRule = createReadwriteSplittingRule();
-        readwriteSplittingRule.updateStatus(new DataSourceNameDisabledEvent(new QualifiedSchema("readwrite_splitting_db.readwrite.read_ds"), true));
-        assertThat(readwriteSplittingRule.getSingleDataSourceRule().getReadDataSourceNames(), is(Arrays.asList("read_ds_0", "read_ds_1")));
+        readwriteSplittingRule.updateStatus(new StorageNodeDataSourceChangedEvent(new QualifiedDatabase("readwrite_splitting_db.readwrite.read_ds"),
+                new StorageNodeDataSource(StorageNodeRole.MEMBER, StorageNodeStatus.DISABLED)));
+        assertThat(readwriteSplittingRule.getSingleDataSourceRule().getEnabledReplicaDataSources(), is(Arrays.asList("read_ds_0", "read_ds_1")));
     }
     
     @Test
     public void assertUpdateRuleStatus() {
         ReadwriteSplittingRule readwriteSplittingRule = createReadwriteSplittingRule();
-        readwriteSplittingRule.updateStatus(new DataSourceNameDisabledEvent(new QualifiedSchema("readwrite_splitting_db.readwrite.read_ds_0"), true));
-        assertThat(readwriteSplittingRule.getSingleDataSourceRule().getReadDataSourceNames(), is(Collections.singletonList("read_ds_1")));
+        readwriteSplittingRule.updateStatus(new StorageNodeDataSourceChangedEvent(new QualifiedDatabase("readwrite_splitting_db.readwrite.read_ds_0"),
+                new StorageNodeDataSource(StorageNodeRole.MEMBER, StorageNodeStatus.DISABLED)));
+        assertThat(readwriteSplittingRule.getSingleDataSourceRule().getEnabledReplicaDataSources(), is(Collections.singletonList("read_ds_1")));
     }
     
     @Test
     public void assertUpdateRuleStatusWithEnable() {
         ReadwriteSplittingRule readwriteSplittingRule = createReadwriteSplittingRule();
-        readwriteSplittingRule.updateStatus(new DataSourceNameDisabledEvent(new QualifiedSchema("readwrite_splitting_db.readwrite.read_ds_0"), true));
-        assertThat(readwriteSplittingRule.getSingleDataSourceRule().getReadDataSourceNames(), is(Collections.singletonList("read_ds_1")));
-        readwriteSplittingRule.updateStatus(new DataSourceNameDisabledEvent(new QualifiedSchema("readwrite_splitting_db.readwrite.read_ds_0"), false));
-        assertThat(readwriteSplittingRule.getSingleDataSourceRule().getReadDataSourceNames(), is(Arrays.asList("read_ds_0", "read_ds_1")));
+        readwriteSplittingRule.updateStatus(new StorageNodeDataSourceChangedEvent(new QualifiedDatabase("readwrite_splitting_db.readwrite.read_ds_0"),
+                new StorageNodeDataSource(StorageNodeRole.MEMBER, StorageNodeStatus.DISABLED)));
+        assertThat(readwriteSplittingRule.getSingleDataSourceRule().getEnabledReplicaDataSources(), is(Collections.singletonList("read_ds_1")));
+        readwriteSplittingRule.updateStatus(new StorageNodeDataSourceChangedEvent(new QualifiedDatabase("readwrite_splitting_db.readwrite.read_ds_0"),
+                new StorageNodeDataSource(StorageNodeRole.MEMBER, StorageNodeStatus.ENABLED)));
+        assertThat(readwriteSplittingRule.getSingleDataSourceRule().getEnabledReplicaDataSources(), is(Arrays.asList("read_ds_0", "read_ds_1")));
     }
     
     @Test
     public void assertGetDataSourceMapper() {
         ReadwriteSplittingRule readwriteSplittingRule = createReadwriteSplittingRule();
         Map<String, Collection<String>> actual = readwriteSplittingRule.getDataSourceMapper();
-        Map<String, Collection<String>> expected = ImmutableMap.of("test_pr", Arrays.asList("write_ds", "read_ds_0", "read_ds_1"));
+        Map<String, Collection<String>> expected = Collections.singletonMap("readwrite", Arrays.asList("write_ds", "read_ds_0", "read_ds_1"));
         assertThat(actual, is(expected));
-    }
-    
-    @Test
-    public void assertGetRuleType() {
-        ReadwriteSplittingRule readwriteSplittingRule = createReadwriteSplittingRule();
-        assertThat(readwriteSplittingRule.getType(), is(ReadwriteSplittingRule.class.getSimpleName()));
     }
 }

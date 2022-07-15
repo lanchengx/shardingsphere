@@ -17,13 +17,13 @@
 
 package org.apache.shardingsphere.test.integration.env.scenario.dataset;
 
-import com.google.common.base.Joiner;
 import lombok.RequiredArgsConstructor;
 import org.apache.shardingsphere.infra.database.type.DatabaseType;
-import org.apache.shardingsphere.infra.database.type.DatabaseTypeRegistry;
+import org.apache.shardingsphere.infra.database.type.DatabaseTypeEngine;
 import org.apache.shardingsphere.infra.datanode.DataNode;
+import org.apache.shardingsphere.infra.executor.kernel.ExecutorEngine;
 import org.apache.shardingsphere.infra.executor.kernel.thread.ExecutorServiceManager;
-import org.apache.shardingsphere.sharding.support.InlineExpressionParser;
+import org.apache.shardingsphere.infra.expr.InlineExpressionParser;
 import org.apache.shardingsphere.test.integration.cases.dataset.DataSet;
 import org.apache.shardingsphere.test.integration.cases.dataset.metadata.DataSetColumn;
 import org.apache.shardingsphere.test.integration.cases.dataset.metadata.DataSetMetaData;
@@ -53,7 +53,8 @@ import java.util.concurrent.Callable;
  */
 public final class DataSetEnvironmentManager {
     
-    private static final ExecutorServiceManager EXECUTOR_SERVICE_MANAGER = new ExecutorServiceManager(Runtime.getRuntime().availableProcessors() * 2 - 1);
+    // TODO ExecutorEngine.execute and callback
+    private static final ExecutorServiceManager EXECUTOR_SERVICE_MANAGER = ExecutorEngine.createExecutorEngineWithCPU().getExecutorServiceManager();
     
     private final DataSet dataSet;
     
@@ -85,8 +86,8 @@ public final class DataSetEnvironmentManager {
             }
             String insertSQL;
             try (Connection connection = dataSourceMap.get(dataNode.getDataSourceName()).getConnection()) {
-                DatabaseType databaseType = DatabaseTypeRegistry.getDatabaseTypeByURL(connection.getMetaData().getURL());
-                insertSQL = generateInsertSQL(databaseType.getQuoteCharacter().wrap(dataNode.getTableName()), dataSetMetaData.getColumns(), databaseType.getName());
+                DatabaseType databaseType = DatabaseTypeEngine.getDatabaseType(connection.getMetaData().getURL());
+                insertSQL = generateInsertSQL(databaseType.getQuoteCharacter().wrap(dataNode.getTableName()), dataSetMetaData.getColumns(), databaseType.getType());
             }
             fillDataTasks.add(new InsertTask(dataSourceMap.get(dataNode.getDataSourceName()), insertSQL, sqlValueGroups));
         }
@@ -122,7 +123,7 @@ public final class DataSetEnvironmentManager {
             }
             placeholders.add("?");
         }
-        return String.format("INSERT INTO %s (%s) VALUES (%s)", tableName, Joiner.on(",").join(columnNames), Joiner.on(",").join(placeholders));
+        return String.format("INSERT INTO %s (%s) VALUES (%s)", tableName, String.join(",", columnNames), String.join(",", placeholders));
     }
     
     private String generateEnum(final String type) {
@@ -212,7 +213,7 @@ public final class DataSetEnvironmentManager {
         public Void call() throws SQLException {
             try (Connection connection = dataSource.getConnection()) {
                 for (String each : tableNames) {
-                    DatabaseType databaseType = DatabaseTypeRegistry.getDatabaseTypeByURL(connection.getMetaData().getURL());
+                    DatabaseType databaseType = DatabaseTypeEngine.getDatabaseType(connection.getMetaData().getURL());
                     try (PreparedStatement preparedStatement = connection.prepareStatement(String.format("DELETE FROM %s", databaseType.getQuoteCharacter().wrap(each)))) {
                         preparedStatement.execute();
                     }

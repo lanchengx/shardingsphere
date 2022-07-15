@@ -22,11 +22,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.shardingsphere.data.pipeline.api.ingest.position.FinishedPosition;
 import org.apache.shardingsphere.data.pipeline.api.job.JobStatus;
+import org.apache.shardingsphere.data.pipeline.core.api.GovernanceRepositoryAPI;
+import org.apache.shardingsphere.data.pipeline.core.api.PipelineAPIFactory;
+import org.apache.shardingsphere.data.pipeline.core.exception.PipelineIgnoredException;
 import org.apache.shardingsphere.data.pipeline.core.execute.ExecuteCallback;
 import org.apache.shardingsphere.data.pipeline.core.task.IncrementalTask;
 import org.apache.shardingsphere.data.pipeline.core.task.InventoryTask;
-import org.apache.shardingsphere.infra.eventbus.ShardingSphereEventBus;
-import org.apache.shardingsphere.mode.manager.cluster.coordinator.registry.config.event.rule.ScalingReleaseSchemaNameLockEvent;
 
 /**
  * Rule altered job scheduler.
@@ -50,7 +51,9 @@ public final class RuleAlteredJobScheduler implements Runnable {
      * Stop all task.
      */
     public void stop() {
-        log.info("stop job {}", jobContext.getJobId());
+        jobContext.setStopping(true);
+        log.info("stop, jobId={}, shardingItem={}", jobContext.getJobId(), jobContext.getShardingItem());
+        // TODO blocking stop
         for (InventoryTask each : jobContext.getInventoryTasks()) {
             log.info("stop inventory task {} - {}", jobContext.getJobId(), each.getTaskId());
             each.stop();
@@ -61,12 +64,36 @@ public final class RuleAlteredJobScheduler implements Runnable {
             each.stop();
             each.close();
         }
-        jobContext.close();
     }
     
     @Override
     public void run() {
+        String jobId = jobContext.getJobId();
+        GovernanceRepositoryAPI governanceRepositoryAPI = PipelineAPIFactory.getGovernanceRepositoryAPI();
+        try {
+            jobContext.getJobPreparer().prepare(jobContext);
+        } catch (final PipelineIgnoredException ex) {
+            log.info("pipeline ignore exception: {}", ex.getMessage());
+            RuleAlteredJobCenter.stop(jobId);
+            // CHECKSTYLE:OFF
+        } catch (final RuntimeException ex) {
+            // CHECKSTYLE:ON
+            log.error("job prepare failed, {}-{}", jobId, jobContext.getShardingItem(), ex);
+            RuleAlteredJobCenter.stop(jobId);
+            jobContext.setStatus(JobStatus.PREPARING_FAILURE);
+            governanceRepositoryAPI.persistJobProgress(jobContext);
+            throw ex;
+        }
+        if (jobContext.isStopping()) {
+            log.info("job stopping, ignore inventory task");
+            return;
+        }
+        governanceRepositoryAPI.persistJobProgress(jobContext);
         if (executeInventoryTask()) {
+            if (jobContext.isStopping()) {
+                log.info("stopping, ignore incremental task");
+                return;
+            }
             executeIncrementalTask();
         }
     }
@@ -102,10 +129,8 @@ public final class RuleAlteredJobScheduler implements Runnable {
             @Override
             public void onFailure(final Throwable throwable) {
                 log.error("Inventory task execute failed.", throwable);
-                stop();
                 jobContext.setStatus(JobStatus.EXECUTE_INVENTORY_TASK_FAILURE);
-                ScalingReleaseSchemaNameLockEvent event = new ScalingReleaseSchemaNameLockEvent(jobContext.getJobConfig().getWorkflowConfig().getSchemaName());
-                ShardingSphereEventBus.getInstance().post(event);
+                stop();
             }
         };
     }
@@ -136,10 +161,8 @@ public final class RuleAlteredJobScheduler implements Runnable {
             @Override
             public void onFailure(final Throwable throwable) {
                 log.error("Incremental task execute failed.", throwable);
-                stop();
                 jobContext.setStatus(JobStatus.EXECUTE_INCREMENTAL_TASK_FAILURE);
-                ScalingReleaseSchemaNameLockEvent event = new ScalingReleaseSchemaNameLockEvent(jobContext.getJobConfig().getWorkflowConfig().getSchemaName());
-                ShardingSphereEventBus.getInstance().post(event);
+                stop();
             }
         };
     }

@@ -39,12 +39,14 @@ public final class AssertionParameterizedArray implements ParameterizedArray {
     
     private final String scenario;
     
+    private final String mode;
+    
     private final DatabaseType databaseType;
     
     private final SQLExecuteType sqlExecuteType;
     
     @Override
     public String toString() {
-        return String.format("%s: %s -> %s -> %s -> %s", adapter, scenario, databaseType.getName(), sqlExecuteType, testCaseContext.getTestCase().getSql());
+        return String.format("%s: %s -> %s -> %s -> %s", adapter, scenario, databaseType.getType(), sqlExecuteType, testCaseContext.getTestCase().getSql());
     }
 }

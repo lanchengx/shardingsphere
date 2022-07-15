@@ -77,7 +77,7 @@ public final class TestDecodingPlugin implements DecodingPlugin {
                 throw new IngestException("Unknown rowEventType: " + rowEventType);
         }
         String[] tableMetaData = tableName.split("\\.");
-        result.setSchemaName(tableMetaData[0]);
+        result.setDatabaseName(tableMetaData[0]);
         result.setTableName(tableMetaData[1].substring(0, tableMetaData[1].length() - 1));
         return result;
     }
@@ -85,7 +85,6 @@ public final class TestDecodingPlugin implements DecodingPlugin {
     private AbstractRowEvent readWriteRowEvent(final ByteBuffer data) {
         WriteRowEvent result = new WriteRowEvent();
         List<Object> afterColumns = new LinkedList<>();
-        
         while (data.hasRemaining()) {
             afterColumns.add(readColumn(data));
         }
@@ -96,7 +95,6 @@ public final class TestDecodingPlugin implements DecodingPlugin {
     private AbstractRowEvent readUpdateRowEvent(final ByteBuffer data) {
         UpdateRowEvent result = new UpdateRowEvent();
         List<Object> afterColumns = new LinkedList<>();
-        
         while (data.hasRemaining()) {
             afterColumns.add(readColumn(data));
         }
@@ -107,7 +105,6 @@ public final class TestDecodingPlugin implements DecodingPlugin {
     private AbstractRowEvent readDeleteRowEvent(final ByteBuffer data) {
         DeleteRowEvent result = new DeleteRowEvent();
         List<Object> afterColumns = new LinkedList<>();
-        
         while (data.hasRemaining()) {
             afterColumns.add(readColumn(data));
         }
@@ -156,6 +153,14 @@ public final class TestDecodingPlugin implements DecodingPlugin {
     }
     
     private Object readColumnData(final ByteBuffer data, final String columnType) {
+        data.mark();
+        if ('n' == data.get() && data.remaining() >= 3 && 'u' == data.get() && 'l' == data.get() && 'l' == data.get()) {
+            if (data.hasRemaining()) {
+                data.get();
+            }
+            return null;
+        }
+        data.reset();
         if (columnType.startsWith("numeric")) {
             return new BigDecimal(readNextSegment(data));
         }

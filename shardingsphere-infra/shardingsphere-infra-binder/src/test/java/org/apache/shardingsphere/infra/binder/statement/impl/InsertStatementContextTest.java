@@ -17,11 +17,10 @@
 
 package org.apache.shardingsphere.infra.binder.statement.impl;
 
-import com.google.common.collect.Sets;
 import org.apache.shardingsphere.infra.binder.statement.dml.InsertStatementContext;
-import org.apache.shardingsphere.infra.database.DefaultSchema;
-import org.apache.shardingsphere.infra.metadata.ShardingSphereMetaData;
-import org.apache.shardingsphere.infra.metadata.schema.ShardingSphereSchema;
+import org.apache.shardingsphere.infra.database.DefaultDatabase;
+import org.apache.shardingsphere.infra.metadata.database.ShardingSphereDatabase;
+import org.apache.shardingsphere.infra.metadata.database.schema.decorator.model.ShardingSphereSchema;
 import org.apache.shardingsphere.sql.parser.sql.common.segment.dml.assignment.AssignmentSegment;
 import org.apache.shardingsphere.sql.parser.sql.common.segment.dml.assignment.ColumnAssignmentSegment;
 import org.apache.shardingsphere.sql.parser.sql.common.segment.dml.assignment.InsertValuesSegment;
@@ -40,7 +39,9 @@ import org.apache.shardingsphere.sql.parser.sql.common.statement.dml.SelectState
 import org.apache.shardingsphere.sql.parser.sql.common.value.identifier.IdentifierValue;
 import org.apache.shardingsphere.sql.parser.sql.dialect.statement.mysql.dml.MySQLInsertStatement;
 import org.apache.shardingsphere.sql.parser.sql.dialect.statement.mysql.dml.MySQLSelectStatement;
+import org.apache.shardingsphere.sql.parser.sql.dialect.statement.opengauss.OpenGaussStatement;
 import org.apache.shardingsphere.sql.parser.sql.dialect.statement.oracle.dml.OracleInsertStatement;
+import org.apache.shardingsphere.sql.parser.sql.dialect.statement.postgresql.PostgreSQLStatement;
 import org.apache.shardingsphere.sql.parser.sql.dialect.statement.postgresql.dml.PostgreSQLInsertStatement;
 import org.apache.shardingsphere.sql.parser.sql.dialect.statement.sql92.dml.SQL92InsertStatement;
 import org.apache.shardingsphere.sql.parser.sql.dialect.statement.sqlserver.dml.SQLServerInsertStatement;
@@ -49,16 +50,17 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -101,11 +103,12 @@ public final class InsertStatementContextTest {
     }
     
     private InsertStatementContext createInsertStatementContext(final List<Object> parameters, final InsertStatement insertStatement) {
-        ShardingSphereMetaData metaData = mock(ShardingSphereMetaData.class);
+        ShardingSphereDatabase database = mock(ShardingSphereDatabase.class, RETURNS_DEEP_STUBS);
         ShardingSphereSchema schema = mock(ShardingSphereSchema.class);
-        when(metaData.getSchema()).thenReturn(schema);
+        String defaultSchemaName = insertStatement instanceof PostgreSQLStatement || insertStatement instanceof OpenGaussStatement ? "public" : DefaultDatabase.LOGIC_NAME;
+        when(database.getSchemas().get(defaultSchemaName)).thenReturn(schema);
         when(schema.getAllColumnNames("tbl")).thenReturn(Arrays.asList("id", "name", "status"));
-        return new InsertStatementContext(Collections.singletonMap(DefaultSchema.LOGIC_NAME, metaData), parameters, insertStatement, DefaultSchema.LOGIC_NAME);
+        return new InsertStatementContext(Collections.singletonMap(DefaultDatabase.LOGIC_NAME, database), parameters, insertStatement, DefaultDatabase.LOGIC_NAME);
     }
     
     @Test
@@ -168,7 +171,7 @@ public final class InsertStatementContextTest {
     private void setUpOnDuplicateValues(final MySQLInsertStatement insertStatement) {
         List<ColumnSegment> parameterMarkerExpressionAssignmentColumns = new LinkedList<>();
         parameterMarkerExpressionAssignmentColumns.add(new ColumnSegment(0, 0, new IdentifierValue("on_duplicate_key_update_column_1")));
-        AssignmentSegment parameterMarkerExpressionAssignment = new ColumnAssignmentSegment(0, 0, parameterMarkerExpressionAssignmentColumns, 
+        AssignmentSegment parameterMarkerExpressionAssignment = new ColumnAssignmentSegment(0, 0, parameterMarkerExpressionAssignmentColumns,
                 new ParameterMarkerExpressionSegment(0, 0, 4));
         List<ColumnSegment> literalExpressionAssignmentColumns = new LinkedList<>();
         literalExpressionAssignmentColumns.add(new ColumnSegment(0, 0, new IdentifierValue("on_duplicate_key_update_column_2")));
@@ -179,9 +182,7 @@ public final class InsertStatementContextTest {
     }
     
     private void assertInsertStatementContext(final InsertStatementContext actual) {
-        assertNotNull(actual.getTablesContext());
-        assertThat(actual.getTablesContext().getTableNames(), is(Sets.newLinkedHashSet(Collections.singletonList("tbl"))));
-        assertNotNull(actual.getAllTables());
+        assertThat(actual.getTablesContext().getTableNames(), is(new HashSet<>(Collections.singleton("tbl"))));
         assertThat(actual.getAllTables().size(), is(1));
         SimpleTableSegment simpleTableSegment = actual.getAllTables().iterator().next();
         assertThat(simpleTableSegment.getTableName().getStartIndex(), is(0));
@@ -193,6 +194,12 @@ public final class InsertStatementContextTest {
         assertThat(actual.getGeneratedKeyContext(), is(Optional.empty()));
         assertThat(actual.getColumnNames(), is(Arrays.asList("id", "name", "status")));
         assertThat(actual.getInsertValueContexts().size(), is(2));
+        assertTrue(actual.getInsertValueContexts().get(0).getValue(0).isPresent());
+        assertTrue(actual.getInsertValueContexts().get(0).getValue(1).isPresent());
+        assertTrue(actual.getInsertValueContexts().get(0).getValue(2).isPresent());
+        assertTrue(actual.getInsertValueContexts().get(1).getValue(0).isPresent());
+        assertTrue(actual.getInsertValueContexts().get(1).getValue(1).isPresent());
+        assertTrue(actual.getInsertValueContexts().get(1).getValue(2).isPresent());
         assertThat(actual.getInsertValueContexts().get(0).getValue(0).get(), is(1));
         assertThat(actual.getInsertValueContexts().get(0).getValue(1).get(), is("Tom"));
         assertThat(actual.getInsertValueContexts().get(0).getValue(2).get(), is("init"));
@@ -203,75 +210,75 @@ public final class InsertStatementContextTest {
     
     @Test
     public void assertUseDefaultColumnsForMySQL() {
-        assertUseDefaultColumns(new MySQLInsertStatement());
+        assertContainsInsertColumns(new MySQLInsertStatement());
     }
     
     @Test
     public void assertUseDefaultColumnsForOracle() {
-        assertUseDefaultColumns(new OracleInsertStatement());
+        assertContainsInsertColumns(new OracleInsertStatement());
     }
     
     @Test
     public void assertUseDefaultColumnsForPostgreSQL() {
-        assertUseDefaultColumns(new PostgreSQLInsertStatement());
+        assertContainsInsertColumns(new PostgreSQLInsertStatement());
     }
     
     @Test
     public void assertUseDefaultColumnsForSQL92() {
-        assertUseDefaultColumns(new SQL92InsertStatement());
+        assertContainsInsertColumns(new SQL92InsertStatement());
     }
     
     @Test
     public void assertUseDefaultColumnsForSQLServer() {
-        assertUseDefaultColumns(new SQLServerInsertStatement());
+        assertContainsInsertColumns(new SQLServerInsertStatement());
     }
     
-    private void assertUseDefaultColumns(final InsertStatement insertStatement) {
+    private void assertNotContainsInsertColumns(final InsertStatement insertStatement) {
         insertStatement.setTable(new SimpleTableSegment(new TableNameSegment(0, 0, new IdentifierValue(""))));
         InsertStatementContext insertStatementContext = createInsertStatementContext(Collections.emptyList(), insertStatement);
-        assertTrue(insertStatementContext.useDefaultColumns());
+        assertFalse(insertStatementContext.containsInsertColumns());
     }
     
     @Test
     public void assertNotUseDefaultColumnsWithColumnsForMySQL() {
-        assertNotUseDefaultColumnsWithColumns(new MySQLInsertStatement());
+        assertNotContainsInsertColumns(new MySQLInsertStatement());
     }
     
     @Test
     public void assertNotUseDefaultColumnsWithColumnsForOracle() {
-        assertNotUseDefaultColumnsWithColumns(new OracleInsertStatement());
+        assertNotContainsInsertColumns(new OracleInsertStatement());
     }
     
     @Test
     public void assertNotUseDefaultColumnsWithColumnsForPostgreSQL() {
-        assertNotUseDefaultColumnsWithColumns(new PostgreSQLInsertStatement());
+        assertNotContainsInsertColumns(new PostgreSQLInsertStatement());
     }
     
     @Test
     public void assertNotUseDefaultColumnsWithColumnsForSQL92() {
-        assertNotUseDefaultColumnsWithColumns(new SQL92InsertStatement());
+        assertNotContainsInsertColumns(new SQL92InsertStatement());
     }
     
     @Test
     public void assertNotUseDefaultColumnsWithColumnsForSQLServer() {
-        assertNotUseDefaultColumnsWithColumns(new SQLServerInsertStatement());
+        assertNotContainsInsertColumns(new SQLServerInsertStatement());
     }
     
-    private void assertNotUseDefaultColumnsWithColumns(final InsertStatement insertStatement) {
+    private void assertContainsInsertColumns(final InsertStatement insertStatement) {
         InsertColumnsSegment insertColumnsSegment = new InsertColumnsSegment(0, 0, Collections.singletonList(new ColumnSegment(0, 0, new IdentifierValue("col"))));
         insertStatement.setInsertColumns(insertColumnsSegment);
         insertStatement.setTable(new SimpleTableSegment(new TableNameSegment(0, 0, new IdentifierValue(""))));
         InsertStatementContext insertStatementContext = createInsertStatementContext(Collections.emptyList(), insertStatement);
-        assertFalse(insertStatementContext.useDefaultColumns());
+        assertTrue(insertStatementContext.containsInsertColumns());
     }
     
     @Test
-    public void assertNotUseDefaultColumnsWithSetAssignmentForMySQL() {
+    public void assertContainsInsertColumnsWithSetAssignmentForMySQL() {
         MySQLInsertStatement insertStatement = new MySQLInsertStatement();
         insertStatement.setSetAssignment(new SetAssignmentSegment(0, 0, Collections.emptyList()));
         insertStatement.setTable(new SimpleTableSegment(new TableNameSegment(0, 0, new IdentifierValue(""))));
         InsertStatementContext insertStatementContext = createInsertStatementContext(Collections.emptyList(), insertStatement);
-        assertFalse(insertStatementContext.useDefaultColumns());
+        assertTrue(insertStatementContext.containsInsertColumns());
     }
     
     @Test

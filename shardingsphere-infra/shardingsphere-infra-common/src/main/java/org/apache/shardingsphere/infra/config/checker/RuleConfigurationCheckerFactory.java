@@ -21,7 +21,7 @@ import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.apache.shardingsphere.infra.config.RuleConfiguration;
 import org.apache.shardingsphere.spi.ShardingSphereServiceLoader;
-import org.apache.shardingsphere.spi.ordered.OrderedSPIRegistry;
+import org.apache.shardingsphere.spi.type.ordered.OrderedSPIRegistry;
 
 import java.util.Collections;
 import java.util.Map;
@@ -38,13 +38,13 @@ public final class RuleConfigurationCheckerFactory {
     }
     
     /**
-     * Create new instance of rule configuration checker.
+     * Find instance of rule configuration checker.
      * 
      * @param config rule configuration
-     * @return new instance of rule configuration checker
+     * @return found instance
      */
     @SuppressWarnings("rawtypes")
-    public static Optional<RuleConfigurationChecker> newInstance(final RuleConfiguration config) {
+    public static Optional<RuleConfigurationChecker> findInstance(final RuleConfiguration config) {
         Map<Class<?>, RuleConfigurationChecker> checkers = OrderedSPIRegistry.getRegisteredServicesByClass(RuleConfigurationChecker.class, Collections.singleton(config.getClass()));
         return Optional.ofNullable(checkers.get(config.getClass()));
     }

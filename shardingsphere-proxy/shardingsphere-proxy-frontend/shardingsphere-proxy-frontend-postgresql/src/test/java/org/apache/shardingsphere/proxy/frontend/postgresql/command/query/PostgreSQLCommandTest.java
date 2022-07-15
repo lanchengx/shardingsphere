@@ -17,6 +17,7 @@
 
 package org.apache.shardingsphere.proxy.frontend.postgresql.command.query;
 
+import org.apache.shardingsphere.distsql.parser.statement.DistSQLStatement;
 import org.apache.shardingsphere.distsql.parser.statement.rdl.create.AddResourceStatement;
 import org.apache.shardingsphere.sharding.distsql.parser.statement.CreateShardingTableRuleStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.SQLStatement;
@@ -27,11 +28,13 @@ import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.AlterProced
 import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.AlterTableStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.AlterTablespaceStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.AlterViewStatement;
+import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.CloseStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.CreateDatabaseStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.CreateFunctionStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.CreateIndexStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.CreateTableStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.CreateViewStatement;
+import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.DeclareStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.DropDatabaseStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.DropFunctionStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.DropIndexStatement;
@@ -39,6 +42,7 @@ import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.DropProcedu
 import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.DropTableStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.DropTablespaceStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.DropViewStatement;
+import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.MoveStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.TruncateStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.dml.CallStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.dml.DeleteStatement;
@@ -46,6 +50,7 @@ import org.apache.shardingsphere.sql.parser.sql.common.statement.dml.DoStatement
 import org.apache.shardingsphere.sql.parser.sql.common.statement.dml.InsertStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.dml.SelectStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.dml.UpdateStatement;
+import org.apache.shardingsphere.sql.parser.sql.dialect.statement.opengauss.ddl.OpenGaussCursorStatement;
 import org.apache.shardingsphere.sql.parser.sql.dialect.statement.postgresql.dal.PostgreSQLResetParameterStatement;
 import org.apache.shardingsphere.sql.parser.sql.dialect.statement.postgresql.dal.PostgreSQLSetStatement;
 import org.apache.shardingsphere.sql.parser.sql.dialect.statement.postgresql.dal.PostgreSQLVacuumStatement;
@@ -175,9 +180,10 @@ public final class PostgreSQLCommandTest {
     
     @Test
     public void assertValueOfCreateShardingTableRuleOrCreateDataSourcesStatement() {
-        assertThat(PostgreSQLCommand.valueOf(AddResourceStatement.class).orElse(null), is(PostgreSQLCommand.CREATE));
-        assertThat(PostgreSQLCommand.valueOf(CreateShardingTableRuleStatement.class).orElse(null), is(PostgreSQLCommand.CREATE));
-        assertThat(PostgreSQLCommand.CREATE.getTag(), is("CREATE"));
+        assertThat(PostgreSQLCommand.valueOf(AddResourceStatement.class).orElse(null), is(PostgreSQLCommand.SUCCESS));
+        assertThat(PostgreSQLCommand.valueOf(CreateShardingTableRuleStatement.class).orElse(null), is(PostgreSQLCommand.SUCCESS));
+        assertThat(PostgreSQLCommand.valueOf(DistSQLStatement.class).orElse(null), is(PostgreSQLCommand.SUCCESS));
+        assertThat(PostgreSQLCommand.SUCCESS.getTag(), is("SUCCESS"));
     }
     
     @Test
@@ -332,5 +338,24 @@ public final class PostgreSQLCommandTest {
     public void assertValueOfResetStatement() {
         assertThat(PostgreSQLCommand.valueOf(PostgreSQLResetParameterStatement.class).orElse(null), is(PostgreSQLCommand.RESET));
         assertThat(PostgreSQLCommand.RESET.getTag(), is("RESET"));
+    }
+    
+    @Test
+    public void assertValueOfCursorStatement() {
+        assertThat(PostgreSQLCommand.valueOf(OpenGaussCursorStatement.class).orElse(null), is(PostgreSQLCommand.DECLARE_CURSOR));
+        assertThat(PostgreSQLCommand.valueOf(DeclareStatement.class).orElse(null), is(PostgreSQLCommand.DECLARE_CURSOR));
+        assertThat(PostgreSQLCommand.DECLARE_CURSOR.getTag(), is("DECLARE CURSOR"));
+    }
+    
+    @Test
+    public void assertValueOfMoveStatement() {
+        assertThat(PostgreSQLCommand.valueOf(MoveStatement.class).orElse(null), is(PostgreSQLCommand.MOVE));
+        assertThat(PostgreSQLCommand.MOVE.getTag(), is("MOVE"));
+    }
+    
+    @Test
+    public void assertValueOfCloseStatement() {
+        assertThat(PostgreSQLCommand.valueOf(CloseStatement.class).orElse(null), is(PostgreSQLCommand.CLOSE_CURSOR));
+        assertThat(PostgreSQLCommand.CLOSE_CURSOR.getTag(), is("CLOSE CURSOR"));
     }
 }

@@ -21,15 +21,16 @@ import freemarker.template.Configuration;
 import freemarker.template.TemplateException;
 import lombok.SneakyThrows;
 import org.apache.shardingsphere.example.generator.core.yaml.config.YamlExampleConfiguration;
+import org.apache.shardingsphere.example.generator.core.yaml.config.YamlExampleConfigurationValidator;
 import org.apache.shardingsphere.infra.yaml.engine.YamlEngine;
+import org.apache.shardingsphere.spi.ShardingSphereServiceLoader;
+import org.apache.shardingsphere.spi.type.typed.TypedSPIRegistry;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.util.Collection;
 import java.util.Objects;
-import java.util.ServiceLoader;
 
 /**
  * Example generator factory.
@@ -39,6 +40,10 @@ public final class ExampleGeneratorFactory {
     private static final String CONFIG_FILE = "/config.yaml";
     
     private final Configuration templateConfig;
+    
+    static {
+        ShardingSphereServiceLoader.register(ExampleGenerator.class);
+    }
     
     public ExampleGeneratorFactory() throws IOException {
         templateConfig = createTemplateConfiguration();
@@ -53,25 +58,22 @@ public final class ExampleGeneratorFactory {
     
     /**
      * Generate directories and files by template.
-     * 
+     *
      * @throws TemplateException template exception
      * @throws IOException IO exception
      */
-    @SuppressWarnings("unchecked")
     public void generate() throws TemplateException, IOException {
-        YamlExampleConfiguration exampleConfiguration = swapConfigToObject();
-        Collection<String> products = exampleConfiguration.getProducts();
-        for (ExampleGenerator each : ServiceLoader.load(ExampleGenerator.class)) {
-            if (products.contains(each.getType())) {
-                each.generate(templateConfig, exampleConfiguration);
-            }
+        YamlExampleConfiguration exampleConfig = swapConfigToObject();
+        YamlExampleConfigurationValidator.validate(exampleConfig);
+        for (String each : exampleConfig.getProducts()) {
+            TypedSPIRegistry.getRegisteredService(ExampleGenerator.class, each).generate(templateConfig, exampleConfig);
         }
     }
     
     @SneakyThrows({URISyntaxException.class, IOException.class})
     private YamlExampleConfiguration swapConfigToObject() {
         URL url = ExampleGeneratorFactory.class.getResource(CONFIG_FILE);
-        File file =  null == url ? new File(CONFIG_FILE) : new File(url.toURI().getPath());
+        File file = null == url ? new File(CONFIG_FILE) : new File(url.toURI().getPath());
         return YamlEngine.unmarshal(file, YamlExampleConfiguration.class);
     }
 }

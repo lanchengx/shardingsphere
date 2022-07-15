@@ -20,19 +20,15 @@ package org.apache.shardingsphere.sharding.distsql.handler.update;
 import org.apache.shardingsphere.infra.distsql.exception.DistSQLException;
 import org.apache.shardingsphere.infra.distsql.exception.rule.RequiredRuleMissedException;
 import org.apache.shardingsphere.infra.distsql.update.RuleDefinitionAlterUpdater;
-import org.apache.shardingsphere.infra.metadata.ShardingSphereMetaData;
+import org.apache.shardingsphere.infra.metadata.database.ShardingSphereDatabase;
 import org.apache.shardingsphere.sharding.api.config.ShardingRuleConfiguration;
 import org.apache.shardingsphere.sharding.api.config.rule.ShardingAutoTableRuleConfiguration;
 import org.apache.shardingsphere.sharding.api.config.rule.ShardingTableRuleConfiguration;
 import org.apache.shardingsphere.sharding.distsql.handler.checker.ShardingTableRuleStatementChecker;
 import org.apache.shardingsphere.sharding.distsql.handler.converter.ShardingTableRuleStatementConverter;
 import org.apache.shardingsphere.sharding.distsql.parser.statement.AlterShardingTableRuleStatement;
-import org.apache.shardingsphere.sharding.spi.KeyGenerateAlgorithm;
-import org.apache.shardingsphere.sharding.spi.ShardingAlgorithm;
-import org.apache.shardingsphere.spi.ShardingSphereServiceLoader;
 
 import java.util.Collection;
-import java.util.LinkedList;
 import java.util.stream.Collectors;
 
 /**
@@ -40,17 +36,11 @@ import java.util.stream.Collectors;
  */
 public final class AlterShardingTableRuleStatementUpdater implements RuleDefinitionAlterUpdater<AlterShardingTableRuleStatement, ShardingRuleConfiguration> {
     
-    static {
-        // TODO consider about register once only
-        ShardingSphereServiceLoader.register(ShardingAlgorithm.class);
-        ShardingSphereServiceLoader.register(KeyGenerateAlgorithm.class);
-    }
-    
     @Override
-    public void checkSQLStatement(final ShardingSphereMetaData shardingSphereMetaData, final AlterShardingTableRuleStatement sqlStatement,
-                                  final ShardingRuleConfiguration currentRuleConfig) throws DistSQLException {
-        DistSQLException.predictionThrow(null != currentRuleConfig, () -> new RequiredRuleMissedException("Sharding", shardingSphereMetaData.getName()));
-        ShardingTableRuleStatementChecker.checkAlteration(shardingSphereMetaData, sqlStatement.getRules(), currentRuleConfig);
+    public void checkSQLStatement(final ShardingSphereDatabase database,
+                                  final AlterShardingTableRuleStatement sqlStatement, final ShardingRuleConfiguration currentRuleConfig) throws DistSQLException {
+        DistSQLException.predictionThrow(null != currentRuleConfig, () -> new RequiredRuleMissedException("Sharding", database.getName()));
+        ShardingTableRuleStatementChecker.checkAlteration(database, sqlStatement.getRules(), currentRuleConfig);
     }
     
     @Override
@@ -67,14 +57,14 @@ public final class AlterShardingTableRuleStatementUpdater implements RuleDefinit
     private void removeRuleConfiguration(final ShardingRuleConfiguration currentRuleConfig, final ShardingRuleConfiguration toBeAlteredRuleConfig) {
         Collection<String> toBeAlteredLogicTableNames = getAlteredLogicalTableNames(toBeAlteredRuleConfig);
         toBeAlteredLogicTableNames.forEach(each -> {
-            currentRuleConfig.getTables().removeIf(table -> table.getLogicTable().equals(each));
-            currentRuleConfig.getAutoTables().removeIf(table -> table.getLogicTable().equals(each));
+            currentRuleConfig.getTables().removeIf(table -> table.getLogicTable().equalsIgnoreCase(each));
+            currentRuleConfig.getAutoTables().removeIf(table -> table.getLogicTable().equalsIgnoreCase(each));
         });
     }
     
     private Collection<String> getAlteredLogicalTableNames(final ShardingRuleConfiguration toBeAlteredRuleConfig) {
-        Collection<String> result = toBeAlteredRuleConfig.getTables().stream().map(ShardingTableRuleConfiguration::getLogicTable).collect(Collectors.toCollection(LinkedList::new));
-        result.addAll(toBeAlteredRuleConfig.getAutoTables().stream().map(ShardingAutoTableRuleConfiguration::getLogicTable).collect(Collectors.toCollection(LinkedList::new)));
+        Collection<String> result = toBeAlteredRuleConfig.getTables().stream().map(ShardingTableRuleConfiguration::getLogicTable).collect(Collectors.toList());
+        result.addAll(toBeAlteredRuleConfig.getAutoTables().stream().map(ShardingAutoTableRuleConfiguration::getLogicTable).collect(Collectors.toList()));
         return result;
     }
     

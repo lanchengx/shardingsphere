@@ -71,7 +71,7 @@ public final class MySQLBinlogRowsEventPacket extends AbstractMySQLBinlogEventPa
     
     private boolean isRowsEventVersion2(final int eventType) {
         return MySQLBinlogEventType.WRITE_ROWS_EVENTv2.getValue() == eventType || MySQLBinlogEventType.UPDATE_ROWS_EVENTv2.getValue() == eventType
-            || MySQLBinlogEventType.DELETE_ROWS_EVENTv2.getValue() == eventType;
+                || MySQLBinlogEventType.DELETE_ROWS_EVENTv2.getValue() == eventType;
     }
     
     private MySQLNullBitmap readUpdateColumnsPresentBitmap(final MySQLPacketPayload payload) {
@@ -90,16 +90,12 @@ public final class MySQLBinlogRowsEventPacket extends AbstractMySQLBinlogEventPa
      */
     public void readRows(final MySQLBinlogTableMapEventPacket tableMapEventPacket, final MySQLPacketPayload payload) {
         List<MySQLBinlogColumnDef> columnDefs = tableMapEventPacket.getColumnDefs();
-        while (hasNextRow(payload)) {
+        while (getRemainBytesLength(payload) > 0) {
             rows.add(readRow(columnDefs, payload));
             if (isUpdateRowsEvent(getBinlogEventHeader().getEventType())) {
                 rows2.add(readRow(columnDefs, payload));
             }
         }
-    }
-    
-    private boolean hasNextRow(final MySQLPacketPayload payload) {
-        return payload.getByteBuf().isReadable();
     }
     
     private Serializable[] readRow(final List<MySQLBinlogColumnDef> columnDefs, final MySQLPacketPayload payload) {

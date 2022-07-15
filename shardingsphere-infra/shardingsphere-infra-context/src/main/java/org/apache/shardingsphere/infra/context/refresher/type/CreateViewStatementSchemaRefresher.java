@@ -19,47 +19,62 @@ package org.apache.shardingsphere.infra.context.refresher.type;
 
 import org.apache.shardingsphere.infra.config.props.ConfigurationProperties;
 import org.apache.shardingsphere.infra.context.refresher.MetaDataRefresher;
-import org.apache.shardingsphere.infra.eventbus.ShardingSphereEventBus;
 import org.apache.shardingsphere.infra.federation.optimizer.context.planner.OptimizerPlannerContext;
+import org.apache.shardingsphere.infra.federation.optimizer.context.planner.OptimizerPlannerContextFactory;
 import org.apache.shardingsphere.infra.federation.optimizer.metadata.FederationDatabaseMetaData;
-import org.apache.shardingsphere.infra.metadata.ShardingSphereMetaData;
-import org.apache.shardingsphere.infra.metadata.schema.event.SchemaAlteredEvent;
-import org.apache.shardingsphere.infra.metadata.schema.model.TableMetaData;
+import org.apache.shardingsphere.infra.metadata.database.ShardingSphereDatabase;
+import org.apache.shardingsphere.infra.metadata.database.schema.builder.GenericSchemaBuilder;
+import org.apache.shardingsphere.infra.metadata.database.schema.builder.GenericSchemaBuilderMaterials;
+import org.apache.shardingsphere.infra.metadata.database.schema.decorator.model.ShardingSphereSchema;
+import org.apache.shardingsphere.infra.metadata.database.schema.decorator.model.ShardingSphereTable;
+import org.apache.shardingsphere.infra.metadata.database.schema.event.MetaDataRefreshedEvent;
+import org.apache.shardingsphere.infra.metadata.database.schema.event.SchemaAlteredEvent;
 import org.apache.shardingsphere.infra.rule.identifier.type.DataNodeContainedRule;
 import org.apache.shardingsphere.infra.rule.identifier.type.MutableDataNodeRule;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.CreateViewStatement;
 
 import java.sql.SQLException;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Schema refresher for create view statement.
  */
 public final class CreateViewStatementSchemaRefresher implements MetaDataRefresher<CreateViewStatement> {
     
-    private static final String TYPE = CreateViewStatement.class.getName();
-    
     @Override
-    public void refresh(final ShardingSphereMetaData schemaMetaData, final FederationDatabaseMetaData database, final Map<String, OptimizerPlannerContext> optimizerPlanners,
-                        final Collection<String> logicDataSourceNames, final CreateViewStatement sqlStatement, final ConfigurationProperties props) throws SQLException {
+    public Optional<MetaDataRefreshedEvent> refresh(final ShardingSphereDatabase database, final FederationDatabaseMetaData federationDatabaseMetaData,
+                                                    final Map<String, OptimizerPlannerContext> optimizerPlanners,
+                                                    final Collection<String> logicDataSourceNames, final String schemaName, final CreateViewStatement sqlStatement,
+                                                    final ConfigurationProperties props) throws SQLException {
         String viewName = sqlStatement.getView().getTableName().getIdentifier().getValue();
-        TableMetaData tableMetaData = new TableMetaData();
-        schemaMetaData.getSchema().put(viewName, tableMetaData);
-        if (!containsInDataNodeContainedRule(viewName, schemaMetaData)) {
-            schemaMetaData.getRuleMetaData().findRules(MutableDataNodeRule.class).forEach(each -> each.put(viewName, logicDataSourceNames.iterator().next()));
+        if (!containsInImmutableDataNodeContainedRule(viewName, database)) {
+            database.getRuleMetaData().findRules(MutableDataNodeRule.class).forEach(each -> each.put(logicDataSourceNames.iterator().next(), schemaName, viewName));
         }
-        SchemaAlteredEvent event = new SchemaAlteredEvent(schemaMetaData.getName());
-        event.getAlteredTables().add(tableMetaData);
-        ShardingSphereEventBus.getInstance().post(event);
+        GenericSchemaBuilderMaterials materials = new GenericSchemaBuilderMaterials(database.getProtocolType(),
+                database.getResource().getDatabaseType(), database.getResource().getDataSources(), database.getRuleMetaData().getRules(), props, schemaName);
+        Map<String, ShardingSphereSchema> schemaMap = GenericSchemaBuilder.build(Collections.singletonList(viewName), materials);
+        Optional<ShardingSphereTable> actualViewMetaData = Optional.ofNullable(schemaMap.get(schemaName)).map(optional -> optional.get(viewName));
+        if (actualViewMetaData.isPresent()) {
+            database.getSchemas().get(schemaName).put(viewName, actualViewMetaData.get());
+            federationDatabaseMetaData.putTable(schemaName, actualViewMetaData.get());
+            optimizerPlanners.put(federationDatabaseMetaData.getName(), OptimizerPlannerContextFactory.create(federationDatabaseMetaData));
+            SchemaAlteredEvent event = new SchemaAlteredEvent(database.getName(), schemaName);
+            event.getAlteredTables().add(actualViewMetaData.get());
+            return Optional.of(event);
+        }
+        return Optional.empty();
     }
     
-    private boolean containsInDataNodeContainedRule(final String tableName, final ShardingSphereMetaData schemaMetaData) {
-        return schemaMetaData.getRuleMetaData().findRules(DataNodeContainedRule.class).stream().anyMatch(each -> each.getAllTables().contains(tableName));
+    private boolean containsInImmutableDataNodeContainedRule(final String tableName, final ShardingSphereDatabase database) {
+        return database.getRuleMetaData().findRules(DataNodeContainedRule.class).stream()
+                .filter(each -> !(each instanceof MutableDataNodeRule)).anyMatch(each -> each.getAllTables().contains(tableName));
     }
     
     @Override
     public String getType() {
-        return TYPE;
+        return CreateViewStatement.class.getName();
     }
 }

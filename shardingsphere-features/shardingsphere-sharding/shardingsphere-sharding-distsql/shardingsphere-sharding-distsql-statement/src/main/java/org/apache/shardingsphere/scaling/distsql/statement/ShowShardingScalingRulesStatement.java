@@ -18,14 +18,14 @@
 package org.apache.shardingsphere.scaling.distsql.statement;
 
 import org.apache.shardingsphere.distsql.parser.statement.rql.show.ShowRulesStatement;
-import org.apache.shardingsphere.sql.parser.sql.common.segment.generic.SchemaSegment;
+import org.apache.shardingsphere.sql.parser.sql.common.segment.generic.DatabaseSegment;
 
 /**
  * Show sharding scaling rules statement.
  */
 public final class ShowShardingScalingRulesStatement extends ShowRulesStatement {
     
-    public ShowShardingScalingRulesStatement(final SchemaSegment schema) {
-        super(schema);
+    public ShowShardingScalingRulesStatement(final DatabaseSegment database) {
+        super(database);
     }
 }

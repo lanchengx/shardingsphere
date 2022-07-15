@@ -39,12 +39,15 @@ import org.apache.shardingsphere.proxy.backend.context.ProxyContext;
 import org.apache.shardingsphere.proxy.frontend.netty.ServerHandlerInitializer;
 import org.apache.shardingsphere.proxy.frontend.protocol.FrontDatabaseProtocolTypeFactory;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * ShardingSphere-Proxy.
  */
 @Slf4j
 public final class ShardingSphereProxy {
-
+    
     private EventLoopGroup bossGroup;
     
     private EventLoopGroup workerGroup;
@@ -52,13 +55,14 @@ public final class ShardingSphereProxy {
     /**
      * Start ShardingSphere-Proxy.
      *
-     * @param port port
+     * @param port      port
+     * @param addresses addresses
      */
     @SneakyThrows(InterruptedException.class)
-    public void start(final int port) {
+    public void start(final int port, final List<String> addresses) {
         try {
-            ChannelFuture future = startInternal(port);
-            accept(future);
+            List<ChannelFuture> futures = startInternal(port, addresses);
+            accept(futures);
         } finally {
             workerGroup.shutdownGracefully();
             bossGroup.shutdownGracefully();
@@ -66,16 +70,23 @@ public final class ShardingSphereProxy {
         }
     }
     
-    private ChannelFuture startInternal(final int port) throws InterruptedException {
+    private List<ChannelFuture> startInternal(final int port, final List<String> addresses) throws InterruptedException {
         createEventLoopGroup();
         ServerBootstrap bootstrap = new ServerBootstrap();
         initServerBootstrap(bootstrap);
-        return bootstrap.bind(port).sync();
+        
+        List<ChannelFuture> futures = new ArrayList<>();
+        for (String address : addresses) {
+            futures.add(bootstrap.bind(address, port).sync());
+        }
+        return futures;
     }
     
-    private void accept(final ChannelFuture future) throws InterruptedException {
+    private void accept(final List<ChannelFuture> futures) throws InterruptedException {
         log.info("ShardingSphere-Proxy {} mode started successfully", ProxyContext.getInstance().getContextManager().getInstanceContext().getModeConfiguration().getType());
-        future.channel().closeFuture().sync();
+        for (ChannelFuture future : futures) {
+            future.channel().closeFuture().sync();
+        }
     }
     
     private void createEventLoopGroup() {
@@ -84,20 +95,23 @@ public final class ShardingSphereProxy {
     }
     
     private EventLoopGroup getWorkerGroup() {
-        String driverType = ProxyContext.getInstance().getContextManager().getMetaDataContexts().getProps().getValue(ConfigurationPropertyKey.PROXY_BACKEND_DRIVER_TYPE);
+        String driverType = ProxyContext.getInstance().getContextManager().getMetaDataContexts().getMetaData().getProps().getValue(ConfigurationPropertyKey.PROXY_BACKEND_DRIVER_TYPE);
         boolean reactiveBackendEnabled = "ExperimentalVertx".equalsIgnoreCase(driverType);
         if (reactiveBackendEnabled) {
             return VertxBackendDataSource.getInstance().getVertx().nettyEventLoopGroup();
         }
-        int workerThreads = ProxyContext.getInstance().getContextManager().getMetaDataContexts().getProps().<Integer>getValue(ConfigurationPropertyKey.PROXY_FRONTEND_EXECUTOR_SIZE);
+        int workerThreads = ProxyContext.getInstance().getContextManager().getMetaDataContexts().getMetaData().getProps().<Integer>getValue(ConfigurationPropertyKey.PROXY_FRONTEND_EXECUTOR_SIZE);
         return Epoll.isAvailable() ? new EpollEventLoopGroup(workerThreads) : new NioEventLoopGroup(workerThreads);
     }
     
     private void initServerBootstrap(final ServerBootstrap bootstrap) {
+        Integer backLog = ProxyContext.getInstance().getContextManager().getMetaDataContexts().getMetaData().getProps().<Integer>getValue(ConfigurationPropertyKey.PROXY_NETTY_BACKLOG);
         bootstrap.group(bossGroup, workerGroup)
                 .channel(Epoll.isAvailable() ? EpollServerSocketChannel.class : NioServerSocketChannel.class)
                 .option(ChannelOption.WRITE_BUFFER_WATER_MARK, new WriteBufferWaterMark(8 * 1024 * 1024, 16 * 1024 * 1024))
                 .option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT)
+                .option(ChannelOption.SO_REUSEADDR, true)
+                .option(ChannelOption.SO_BACKLOG, backLog)
                 .childOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT)
                 .childOption(ChannelOption.TCP_NODELAY, true)
                 .handler(new LoggingHandler(LogLevel.INFO))

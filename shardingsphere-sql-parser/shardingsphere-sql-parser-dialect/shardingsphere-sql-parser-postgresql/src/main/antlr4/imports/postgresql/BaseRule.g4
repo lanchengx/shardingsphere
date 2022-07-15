@@ -245,6 +245,7 @@ unreservedWord
     | INSERT
     | INSTEAD
     | INVOKER
+    | INTERVAL
     | ISOLATION
     | KEY
     | LABEL
@@ -271,8 +272,10 @@ unreservedWord
     | MODE
     | MONTH
     | MOVE
+    | MOD
     | NAME
     | NAMES
+    | NATIONAL
     | NEW
     | NEXT
     | NFC
@@ -305,6 +308,7 @@ unreservedWord
     | PARTITION
     | PASSING
     | PASSWORD
+    | PATH
     | PLAIN
     | PLANS
     | POLICY
@@ -396,6 +400,8 @@ unreservedWord
     | TRUSTED
     | TYPE
     | TYPES
+    | TIME
+    | TIMESTAMP
     | UESCAPE
     | UNBOUNDED
     | UNCOMMITTED
@@ -457,7 +463,7 @@ typeFuncNameKeyword
     ;
 
 schemaName
-    : identifier
+    : (owner DOT_)? identifier
     ;
 
 tableName
@@ -888,6 +894,10 @@ qualifiedName
     ;
 
 colId
+    : identifier
+    ;
+
+channelName
     : identifier
     ;
 
@@ -1380,6 +1390,7 @@ defArg
     | NUMBER_
     | STRING_
     | NONE
+    | funcName (LP_ funcArgsList RP_ | LP_ RP_)
     ;
 
 funcType
@@ -1502,6 +1513,8 @@ roleSpec
     | nonReservedWord
     | CURRENT_USER
     | SESSION_USER
+    | CURRENT_ROLE
+    | PUBLIC
     ;
 
 varName
@@ -1699,10 +1712,7 @@ replicaIdentity
     ;
 
 operArgtypes
-    : LP_ typeName RP_
-    | LP_ typeName COMMA_ typeName RP_
-    | LP_ NONE COMMA_ typeName RP_
-    | LP_ typeName COMMA_ NONE RP_
+    : LP_ (typeName | NONE) COMMA_ typeName RP_
     ;
 
 funcArg
@@ -1805,10 +1815,8 @@ relationExprList
     ;
 
 relationExpr
-    : qualifiedName
-    | qualifiedName ASTERISK_
-    | ONLY qualifiedName
-    | ONLY LP_ qualifiedName RP_
+    : qualifiedName (ASTERISK_)?
+    | ONLY LP_? qualifiedName RP_?
     ;
 
 commonFuncOptItem
@@ -1847,11 +1855,15 @@ event
 typeNameList
     : typeName (COMMA_ typeName)*
     ;
-    
-notExistClause
+
+ifNotExists
     : IF NOT EXISTS
     ;
-    
-existClause
+
+ifExists
     : IF EXISTS
+    ;
+
+booleanValue
+    : TRUE | ON | FALSE | OFF | NUMBER_
     ;

@@ -29,71 +29,8 @@ revoke
     : REVOKE optionForClause? (privilegeClause | roleClause) (CASCADE | RESTRICT)?
     ;
 
-privilegeClause
-    : privilegeTypes ON onObjectClause (FROM | TO) granteeList (WITH GRANT OPTION)?
-    ;
-    
-roleClause
-    : privilegeList (FROM | TO) roleList (WITH ADMIN OPTION)? (GRANTED BY roleSpec)?
-    ;
-
 optionForClause
     : (GRANT | ADMIN) OPTION FOR
-    ;
-
-privilegeTypes
-    : privilegeType columnNames? (COMMA_ privilegeType columnNames?)*
-    ;
-
-privilegeType
-    : SELECT
-    | INSERT
-    | UPDATE
-    | DELETE
-    | TRUNCATE
-    | REFERENCES
-    | TRIGGER
-    | CREATE
-    | CONNECT
-    | TEMPORARY
-    | TEMP
-    | EXECUTE
-    | USAGE
-    | ALL PRIVILEGES?
-    ;
-
-onObjectClause
-    : DATABASE nameList
-    | SCHEMA nameList
-    | DOMAIN anyNameList
-    | FUNCTION functionWithArgtypesList
-    | PROCEDURE functionWithArgtypesList
-    | ROUTINE functionWithArgtypesList
-    | LANGUAGE nameList
-    | LARGE OBJECT numericOnlyList
-    | TABLESPACE nameList
-    | TYPE anyNameList
-    | SEQUENCE qualifiedNameList
-    | TABLE? privilegeLevel
-    | FOREIGN DATA WRAPPER nameList
-    | FOREIGN SERVER nameList
-    | ALL TABLES IN SCHEMA nameList
-    | ALL SEQUENCES IN SCHEMA nameList
-    | ALL FUNCTIONS IN SCHEMA nameList
-    | ALL PROCEDURES IN SCHEMA nameList
-    | ALL ROUTINES IN SCHEMA nameList
-    ;
-
-privilegeLevel
-    : ASTERISK_ | ASTERISK_ DOT_ASTERISK_ | identifier DOT_ASTERISK_ | tableNames | schemaName DOT_ routineName
-    ;
-
-routineName
-    : identifier
-    ;
-
-numericOnlyList
-    : numericOnly (COMMA_ numericOnly)*
     ;
 
 createUser
@@ -122,7 +59,7 @@ alterOptRoleElem
     ;
 
 dropUser
-    : DROP USER existClause? roleList
+    : DROP USER ifExists? roleList
     ;
 
 alterUser
@@ -145,47 +82,21 @@ createRole
     ;
 
 dropRole
-    : DROP ROLE existClause? roleList
+    : DROP ROLE ifExists? roleList
     ;
 
 alterRole
     : ALTER ROLE alterUserClauses
     ;
 
-alterSchema
-    : ALTER SCHEMA name (RENAME TO name | OWNER TO roleSpec)
-    ;
-
 createGroup
     : CREATE GROUP roleSpec WITH? createOptRoleElem*
-    ;
-
-createSchema
-    : CREATE SCHEMA notExistClause? createSchemaClauses
-    ;
-
-createSchemaClauses
-    : colId? AUTHORIZATION roleSpec schemaEltList
-    | colId schemaEltList
-    ;
-
-schemaEltList
-    : schemaStmt*
-    ;
-
-schemaStmt
-    : createTable | createIndex | createSequence | createTrigger | grant | createView
-    ;
-
-dropDroup
-    : DROP GROUP existClause? roleList
-    ;
-
-dropSchema
-    : DROP SCHEMA existClause? nameList dropBehavior?
     ;
 
 reassignOwned
     : REASSIGN OWNED BY roleList TO roleSpec
     ;
 
+dropDroup
+    : DROP GROUP ifExists? roleList
+    ;

@@ -22,7 +22,6 @@ import org.apache.shardingsphere.example.generator.scenario.framework.FrameworkE
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 
 /**
@@ -32,7 +31,8 @@ public final class SpringBootStarterJpaExampleScenario implements FrameworkExamp
     
     @Override
     public Map<String, String> getJavaClassTemplateMap() {
-        Map<String, String> result = new HashMap<>(3, 1);
+        Map<String, String> result = new HashMap<>(4, 1);
+        result.put("java/main/SpringBootStarJpaExampleMain.ftl", "ExampleMain.java");
         result.put("java/repository/jpa/OrderItemRepository.ftl", "repository/OrderItemRepository.java");
         result.put("java/repository/jpa/OrderRepository.ftl", "repository/OrderRepository.java");
         result.put("java/repository/jpa/AddressRepository.ftl", "repository/AddressRepository.java");
@@ -41,16 +41,12 @@ public final class SpringBootStarterJpaExampleScenario implements FrameworkExamp
     
     @Override
     public Map<String, String> getResourceTemplateMap() {
-        Map<String, String> result = new HashMap<>(1, 1);
-        result.put("resources/properties/application.ftl", "application.properties");
-        return result;
+        return Collections.singletonMap("resources/properties/application.ftl", "application.properties");
     }
     
     @Override
     public Collection<String> getJavaClassPaths() {
-        Collection<String> result = new HashSet<>();
-        result.add("repository");
-        return result;
+        return Collections.singleton("repository");
     }
     
     @Override

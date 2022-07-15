@@ -20,5 +20,9 @@ grammar RQLStatement;
 import BaseRule;
 
 showReadwriteSplittingRules
-    : SHOW READWRITE_SPLITTING RULES (FROM schemaName)?
+    : SHOW READWRITE_SPLITTING RULES (FROM databaseName)?
+    ;
+
+countReadwriteSplittingRule
+    : COUNT READWRITE_SPLITTING RULE (FROM databaseName)?
     ;

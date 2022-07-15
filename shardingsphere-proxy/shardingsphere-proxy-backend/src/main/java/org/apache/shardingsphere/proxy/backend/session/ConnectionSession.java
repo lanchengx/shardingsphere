@@ -21,13 +21,14 @@ import io.netty.util.AttributeMap;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.shardingsphere.infra.binder.statement.ddl.CursorStatementContext;
 import org.apache.shardingsphere.infra.config.props.ConfigurationPropertyKey;
 import org.apache.shardingsphere.infra.database.type.DatabaseType;
 import org.apache.shardingsphere.infra.exception.ShardingSphereException;
 import org.apache.shardingsphere.infra.executor.sql.prepare.driver.ExecutorStatementManager;
 import org.apache.shardingsphere.infra.metadata.user.Grantee;
 import org.apache.shardingsphere.proxy.backend.communication.BackendConnection;
-import org.apache.shardingsphere.proxy.backend.communication.SQLStatementSchemaHolder;
+import org.apache.shardingsphere.proxy.backend.communication.SQLStatementDatabaseHolder;
 import org.apache.shardingsphere.proxy.backend.communication.jdbc.connection.JDBCBackendConnection;
 import org.apache.shardingsphere.proxy.backend.communication.jdbc.statement.JDBCBackendStatement;
 import org.apache.shardingsphere.proxy.backend.communication.vertx.VertxBackendConnection;
@@ -37,7 +38,8 @@ import org.apache.shardingsphere.proxy.backend.session.transaction.TransactionSt
 import org.apache.shardingsphere.sql.parser.sql.common.constant.TransactionIsolationLevel;
 import org.apache.shardingsphere.transaction.core.TransactionType;
 
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Connection session.
@@ -49,7 +51,7 @@ public final class ConnectionSession {
     private final DatabaseType databaseType;
     
     @Setter(AccessLevel.NONE)
-    private volatile String schemaName;
+    private volatile String databaseName;
     
     private volatile int connectionId;
     
@@ -59,19 +61,21 @@ public final class ConnectionSession {
     
     private final AttributeMap attributeMap;
     
-    @Getter(AccessLevel.NONE)
-    private final AtomicBoolean autoCommit = new AtomicBoolean(true);
-
-    @Getter(AccessLevel.NONE)
-    private AtomicBoolean readOnly = new AtomicBoolean(false);
-
+    private volatile boolean autoCommit = true;
+    
+    private volatile boolean readOnly;
+    
     private TransactionIsolationLevel defaultIsolationLevel;
-
+    
     private TransactionIsolationLevel isolationLevel;
-
+    
     private final BackendConnection backendConnection;
     
     private final ExecutorStatementManager statementManager;
+    
+    private final Map<String, CursorStatementContext> cursorDefinitions = new ConcurrentHashMap<>();
+    
+    private final PreparedStatementRegistry preparedStatementRegistry = new PreparedStatementRegistry();
     
     public ConnectionSession(final DatabaseType databaseType, final TransactionType initialTransactionType, final AttributeMap attributeMap) {
         this.databaseType = databaseType;
@@ -82,84 +86,48 @@ public final class ConnectionSession {
     }
     
     private BackendConnection determineBackendConnection() {
-        String proxyBackendDriverType = ProxyContext.getInstance().getContextManager().getMetaDataContexts().getProps().getValue(ConfigurationPropertyKey.PROXY_BACKEND_DRIVER_TYPE);
+        String proxyBackendDriverType = ProxyContext.getInstance().getContextManager().getMetaDataContexts().getMetaData().getProps().getValue(ConfigurationPropertyKey.PROXY_BACKEND_DRIVER_TYPE);
         return "ExperimentalVertx".equals(proxyBackendDriverType) ? new VertxBackendConnection(this) : new JDBCBackendConnection(this);
     }
     
     private ExecutorStatementManager determineStatementManager() {
-        String proxyBackendDriverType = ProxyContext.getInstance().getContextManager().getMetaDataContexts().getProps().getValue(ConfigurationPropertyKey.PROXY_BACKEND_DRIVER_TYPE);
+        String proxyBackendDriverType = ProxyContext.getInstance().getContextManager().getMetaDataContexts().getMetaData().getProps().getValue(ConfigurationPropertyKey.PROXY_BACKEND_DRIVER_TYPE);
         return "ExperimentalVertx".equals(proxyBackendDriverType) ? new VertxBackendStatement() : new JDBCBackendStatement();
     }
     
     /**
-     * Change schema of current channel.
+     * Change database of current channel.
      *
-     * @param schemaName schema name
+     * @param databaseName database name
      */
-    public void setCurrentSchema(final String schemaName) {
-        if (null != schemaName && schemaName.equals(this.schemaName)) {
+    public void setCurrentDatabase(final String databaseName) {
+        if (null != databaseName && databaseName.equals(this.databaseName)) {
             return;
         }
         if (transactionStatus.isInTransaction()) {
-            throw new ShardingSphereException("Failed to switch schema, please terminate current transaction.");
+            throw new ShardingSphereException("Failed to switch database, please terminate current transaction.");
         }
         if (statementManager instanceof JDBCBackendStatement) {
-            ((JDBCBackendStatement) statementManager).setSchemaName(schemaName);
+            ((JDBCBackendStatement) statementManager).setDatabaseName(databaseName);
         }
-        this.schemaName = schemaName;
+        this.databaseName = databaseName;
     }
     
     /**
-     * Get schema name.
+     * Get database name.
      *
-     * @return schema name
+     * @return database name
      */
-    public String getSchemaName() {
-        return null == SQLStatementSchemaHolder.get() ? schemaName : SQLStatementSchemaHolder.get();
+    public String getDatabaseName() {
+        return null == SQLStatementDatabaseHolder.get() ? databaseName : SQLStatementDatabaseHolder.get();
     }
     
     /**
-     * Get default schema name.
+     * Get default database name.
      *
-     * @return default schema name
+     * @return default database name
      */
-    public String getDefaultSchemaName() {
-        return schemaName;
-    }
-    
-    /**
-     * Is autocommit.
-     *
-     * @return is autocommit
-     */
-    public boolean isAutoCommit() {
-        return autoCommit.get();
-    }
-
-    /**
-     * Set autocommit.
-     *
-     * @param autoCommit autocommit
-     */
-    public void setAutoCommit(final boolean autoCommit) {
-        this.autoCommit.set(autoCommit);
-    }
-
-    /**
-     * Is readonly.
-     *
-     * @return is readonly
-     */
-    public boolean isReadOnly() {
-        return readOnly.get();
-    }
-
-    /**
-     * Set readonly.
-     *
-     * @param readOnly readonly
-     */
-    public void setReadOnly(final boolean readOnly) {
-        this.readOnly.set(readOnly);
+    public String getDefaultDatabaseName() {
+        return databaseName;
     }
 }

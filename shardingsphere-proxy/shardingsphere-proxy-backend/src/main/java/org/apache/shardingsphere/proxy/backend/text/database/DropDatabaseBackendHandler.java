@@ -20,7 +20,7 @@ package org.apache.shardingsphere.proxy.backend.text.database;
 import com.google.common.base.Strings;
 import lombok.RequiredArgsConstructor;
 import org.apache.shardingsphere.infra.executor.check.SQLCheckEngine;
-import org.apache.shardingsphere.infra.metadata.ShardingSphereMetaData;
+import org.apache.shardingsphere.infra.metadata.database.ShardingSphereDatabase;
 import org.apache.shardingsphere.infra.metadata.user.Grantee;
 import org.apache.shardingsphere.infra.rule.ShardingSphereRule;
 import org.apache.shardingsphere.proxy.backend.context.ProxyContext;
@@ -49,33 +49,33 @@ public final class DropDatabaseBackendHandler implements TextProtocolBackendHand
     public ResponseHeader execute() {
         check(sqlStatement, connectionSession.getGrantee());
         if (isDropCurrentDatabase(sqlStatement.getDatabaseName())) {
-            connectionSession.setCurrentSchema(null);
+            connectionSession.setCurrentDatabase(null);
         }
-        ProxyContext.getInstance().getContextManager().deleteSchema(sqlStatement.getDatabaseName());
+        ProxyContext.getInstance().getContextManager().dropDatabase(sqlStatement.getDatabaseName());
         return new UpdateResponseHeader(sqlStatement);
     }
     
     private void check(final DropDatabaseStatement sqlStatement, final Grantee grantee) {
-        String schemaName = sqlStatement.getDatabaseName();
-        if (!SQLCheckEngine.check(schemaName, getRules(schemaName), grantee)) {
-            throw new UnknownDatabaseException(schemaName);
+        String databaseName = sqlStatement.getDatabaseName();
+        if (!SQLCheckEngine.check(databaseName, getRules(databaseName), grantee)) {
+            throw new UnknownDatabaseException(databaseName);
         }
-        if (!sqlStatement.isContainsExistClause() && !ProxyContext.getInstance().getAllSchemaNames().contains(schemaName)) {
-            throw new DBDropNotExistsException(schemaName);
+        if (!sqlStatement.isIfExists() && !ProxyContext.getInstance().getAllDatabaseNames().contains(databaseName)) {
+            throw new DBDropNotExistsException(databaseName);
         }
     }
     
     private boolean isDropCurrentDatabase(final String databaseName) {
-        return !Strings.isNullOrEmpty(connectionSession.getSchemaName()) && connectionSession.getSchemaName().equals(databaseName);
+        return !Strings.isNullOrEmpty(connectionSession.getDatabaseName()) && connectionSession.getDatabaseName().equals(databaseName);
     }
     
-    private static Collection<ShardingSphereRule> getRules(final String schemaName) {
+    private static Collection<ShardingSphereRule> getRules(final String databaseName) {
         Collection<ShardingSphereRule> result = new LinkedList<>();
-        ShardingSphereMetaData metaData = ProxyContext.getInstance().getContextManager().getMetaDataContexts().getMetaData(schemaName);
-        if (null != metaData && null != metaData.getRuleMetaData()) {
-            result.addAll(metaData.getRuleMetaData().getRules());
+        ShardingSphereDatabase database = ProxyContext.getInstance().getContextManager().getMetaDataContexts().getMetaData().getDatabases().get(databaseName);
+        if (null != database && null != database.getRuleMetaData()) {
+            result.addAll(database.getRuleMetaData().getRules());
         }
-        result.addAll(ProxyContext.getInstance().getContextManager().getMetaDataContexts().getGlobalRuleMetaData().getRules());
+        result.addAll(ProxyContext.getInstance().getContextManager().getMetaDataContexts().getMetaData().getGlobalRuleMetaData().getRules());
         return result;
     }
 }

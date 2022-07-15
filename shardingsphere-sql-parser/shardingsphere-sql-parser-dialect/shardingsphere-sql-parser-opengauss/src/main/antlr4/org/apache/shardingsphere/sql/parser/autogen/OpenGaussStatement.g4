@@ -36,7 +36,9 @@ execute
     | startTransaction
     | end
     | commit
+    | commitPrepared
     | rollback
+    | rollbackPrepared
     | abort
     | savepoint
     | releaseSavepoint
@@ -64,6 +66,8 @@ execute
     | alterProcedure
     | alterServer
     | alterSequence
+    | alterView
+    | comment
     | createDatabase
     | createFunction
     | createProcedure
@@ -74,18 +78,20 @@ execute
     | createDomain
     | createRule
     | createSchema
+    | alterSchema
+    | dropSchema
     | createType
+    | dropType
     | createTextSearch
-    | declare
     | dropDatabase
     | dropFunction
     | dropProcedure
+    | dropRule
     | dropServer
     | dropTrigger
     | dropView
     | dropSequence
     | dropDomain
-    | dropSchema
     | vacuum
     | prepare
     | executeStmt
@@ -110,5 +116,25 @@ execute
     | createExtension
     | alterExtension
     | dropExtension
-    ) SEMI_?
+    | dropTextSearch
+    | createSynonym
+    | alterSynonym
+    | dropSynonym
+    | declare
+    | cursor
+    | close
+    | move
+    | fetch
+    | createDirectory
+    | alterDirectory
+    | dropDirectory
+    | createCast
+    | dropCast
+    | alterRule
+    | checkpoint
+    | alterType
+    | createPublication
+    | dropPublication
+    | createAggregate
+    ) SEMI_? EOF
     ;

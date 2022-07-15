@@ -18,12 +18,12 @@
 package org.apache.shardingsphere.infra.executor.sql.execute.engine.raw.callback;
 
 import com.google.common.base.Preconditions;
+import org.apache.shardingsphere.infra.eventbus.EventBusContext;
 import org.apache.shardingsphere.infra.executor.kernel.model.ExecutorCallback;
 import org.apache.shardingsphere.infra.executor.sql.execute.engine.raw.RawSQLExecutionUnit;
 import org.apache.shardingsphere.infra.executor.sql.execute.result.ExecuteResult;
 import org.apache.shardingsphere.infra.executor.sql.process.ExecuteProcessEngine;
 import org.apache.shardingsphere.infra.executor.sql.process.model.ExecuteProcessConstants;
-import org.apache.shardingsphere.spi.ShardingSphereServiceLoader;
 
 import java.sql.SQLException;
 import java.util.Collection;
@@ -34,15 +34,14 @@ import java.util.Map;
  */
 public final class RawSQLExecutorCallback implements ExecutorCallback<RawSQLExecutionUnit, ExecuteResult> {
     
-    static {
-        ShardingSphereServiceLoader.register(RawExecutorCallback.class);
-    }
-    
     @SuppressWarnings("rawtypes")
     private final Collection<RawExecutorCallback> callbacks;
     
-    public RawSQLExecutorCallback() {
-        callbacks = ShardingSphereServiceLoader.getSingletonServiceInstances(RawExecutorCallback.class);
+    private final EventBusContext eventBusContext;
+    
+    public RawSQLExecutorCallback(final EventBusContext eventBusContext) {
+        this.eventBusContext = eventBusContext;
+        callbacks = RawExecutorCallbackFactory.getAllInstances();
         Preconditions.checkState(!callbacks.isEmpty(), "No raw executor callback implementation found.");
     }
     
@@ -53,7 +52,7 @@ public final class RawSQLExecutorCallback implements ExecutorCallback<RawSQLExec
         if (dataMap.containsKey(ExecuteProcessConstants.EXECUTE_ID.name())) {
             String executionID = dataMap.get(ExecuteProcessConstants.EXECUTE_ID.name()).toString();
             for (RawSQLExecutionUnit each : inputs) {
-                ExecuteProcessEngine.finish(executionID, each);
+                ExecuteProcessEngine.finish(executionID, each, eventBusContext);
             }
         }
         return result;

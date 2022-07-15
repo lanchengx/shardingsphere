@@ -14,6 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+<#if mode?exists>
+    <#include "../mode/spring-boot-starter/${mode}.ftl" />
+</#if>
 <#if framework?contains("mybatis")>
 
 mybatis.mapper-locations=classpath*:mappers/*Mapper.xml

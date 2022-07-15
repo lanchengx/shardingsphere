@@ -18,14 +18,14 @@
 package org.apache.shardingsphere.dbdiscovery.distsql.parser.statement;
 
 import org.apache.shardingsphere.distsql.parser.statement.rql.show.ShowRulesStatement;
-import org.apache.shardingsphere.sql.parser.sql.common.segment.generic.SchemaSegment;
+import org.apache.shardingsphere.sql.parser.sql.common.segment.generic.DatabaseSegment;
 
 /**
  * Show database discovery heartbeats statement.
  */
 public final class ShowDatabaseDiscoveryHeartbeatsStatement extends ShowRulesStatement {
     
-    public ShowDatabaseDiscoveryHeartbeatsStatement(final SchemaSegment schema) {
-        super(schema);
+    public ShowDatabaseDiscoveryHeartbeatsStatement(final DatabaseSegment database) {
+        super(database);
     }
 }

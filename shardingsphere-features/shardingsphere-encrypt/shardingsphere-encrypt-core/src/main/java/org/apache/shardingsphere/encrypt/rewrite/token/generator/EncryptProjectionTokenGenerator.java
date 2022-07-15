@@ -28,7 +28,8 @@ import org.apache.shardingsphere.infra.binder.segment.select.projection.impl.Sho
 import org.apache.shardingsphere.infra.binder.statement.SQLStatementContext;
 import org.apache.shardingsphere.infra.binder.statement.dml.SelectStatementContext;
 import org.apache.shardingsphere.infra.database.type.DatabaseType;
-import org.apache.shardingsphere.infra.metadata.schema.ShardingSphereSchema;
+import org.apache.shardingsphere.infra.database.type.DatabaseTypeEngine;
+import org.apache.shardingsphere.infra.metadata.database.schema.decorator.model.ShardingSphereSchema;
 import org.apache.shardingsphere.infra.rewrite.sql.token.generator.CollectionSQLTokenGenerator;
 import org.apache.shardingsphere.infra.rewrite.sql.token.generator.aware.PreviousSQLTokensAware;
 import org.apache.shardingsphere.infra.rewrite.sql.token.generator.aware.SchemaMetaDataAware;
@@ -54,9 +55,11 @@ public final class EncryptProjectionTokenGenerator implements CollectionSQLToken
     
     private List<SQLToken> previousSQLTokens;
     
-    private ShardingSphereSchema schema;
-    
     private EncryptRule encryptRule;
+    
+    private String databaseName;
+    
+    private Map<String, ShardingSphereSchema> schemas;
     
     @Override
     public boolean isGenerateSQLToken(final SQLStatementContext<?> sqlStatementContext) {
@@ -136,10 +139,12 @@ public final class EncryptProjectionTokenGenerator implements CollectionSQLToken
                 columns.addAll(((ShorthandProjection) projection).getActualColumns().values());
             }
         }
+        String defaultSchema = DatabaseTypeEngine.getDefaultSchemaName(selectStatementContext.getDatabaseType(), databaseName);
+        ShardingSphereSchema schema = selectStatementContext.getTablesContext().getSchemaName().map(schemas::get).orElseGet(() -> schemas.get(defaultSchema));
         return selectStatementContext.getTablesContext().findTableNamesByColumnProjection(columns, schema);
     }
     
-    private Collection<ColumnProjection> generateProjections(final String tableName, final ColumnProjection column, final SubqueryType subqueryType, final boolean shorthand, 
+    private Collection<ColumnProjection> generateProjections(final String tableName, final ColumnProjection column, final SubqueryType subqueryType, final boolean shorthand,
                                                              final ShorthandProjectionSegment segment) {
         Collection<ColumnProjection> result = new LinkedList<>();
         if (SubqueryType.PREDICATE_SUBQUERY.equals(subqueryType)) {
@@ -162,7 +167,7 @@ public final class EncryptProjectionTokenGenerator implements CollectionSQLToken
     }
     
     private ColumnProjection generatePredicateSubqueryProjection(final String tableName, final ColumnProjection column) {
-        boolean queryWithCipherColumn = encryptRule.isQueryWithCipherColumn(tableName);
+        boolean queryWithCipherColumn = encryptRule.isQueryWithCipherColumn(tableName, column.getName());
         if (!queryWithCipherColumn) {
             Optional<String> plainColumn = encryptRule.findPlainColumn(tableName, column.getName());
             if (plainColumn.isPresent()) {
@@ -200,7 +205,7 @@ public final class EncryptProjectionTokenGenerator implements CollectionSQLToken
     }
     
     private String getEncryptColumnName(final String tableName, final String logicEncryptColumnName) {
-        boolean queryWithCipherColumn = encryptRule.isQueryWithCipherColumn(tableName);
+        boolean queryWithCipherColumn = encryptRule.isQueryWithCipherColumn(tableName, logicEncryptColumnName);
         if (!queryWithCipherColumn) {
             return encryptRule.findPlainColumn(tableName, logicEncryptColumnName).orElseGet(() -> encryptRule.getCipherColumn(tableName, logicEncryptColumnName));
         }

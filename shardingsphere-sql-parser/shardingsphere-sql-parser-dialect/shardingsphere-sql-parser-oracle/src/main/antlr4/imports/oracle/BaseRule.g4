@@ -97,7 +97,7 @@ unreservedWord
     | SYSGUID | SYSBACKUP | SYSDBA | SYSDG | SYSKM | SYSOPER | DBA_RECYCLEBIN |SCHEMA
     | DO | DEFINER | CURRENT_USER | CASCADED | CLOSE | OPEN | NEXT | NAME | NAMES
     | COLLATION | REAL | TYPE | FIRST | RANK | SAMPLE | SYSTIMESTAMP | INTERVAL | MINUTE | ANY 
-    | LENGTH | SINGLE_C
+    | LENGTH | SINGLE_C | capacityUnit | TARGET | PUBLIC
     ;
 
 schemaName
@@ -109,6 +109,10 @@ tableName
     ;
 
 viewName
+    : (owner DOT_)? name
+    ;
+
+triggerName
     : (owner DOT_)? name
     ;
 
@@ -148,7 +152,7 @@ typeName
     : (owner DOT_)? name
     ;
 
-indextypeName
+indexTypeName
     : (owner DOT_)? name
     ;
 
@@ -161,6 +165,10 @@ operatorName
     ;
 
 dimensionName
+    : (owner DOT_)? name
+    ;
+
+directoryName
     : (owner DOT_)? name
     ;
 
@@ -216,9 +224,6 @@ parameterValue
     : literals | identifier
     ;
 
-directoryName
-    : identifier
-    ;
 
 dispatcherName
     : stringLiterals
@@ -273,6 +278,10 @@ parameterName
     ;
 
 editionName
+    : identifier
+    ;
+
+outlineName
     : identifier
     ;
 
@@ -608,10 +617,102 @@ fileName
     ;
 
 asmFileName
-    : STRING_
+    : fullyQualifiedFileName
+    | numericFileName
+    | incompleteFileName
+    | aliasFileName
+    ;
+
+fullyQualifiedFileName
+    : PLUS_ diskgroupName SLASH_ dbName SLASH_ fileType SLASH_ fileTypeTag DOT_ fileNumber DOT_ incarnationNumber
+    ;
+
+dbName
+    : identifier
+    ;
+
+fileType
+    : CONTROLFILE
+    | DATAFILE
+    | ONLINELOG
+    | ARCHIVELOG
+    | TEMPFILE
+    | BACKUPSET
+    | PARAMETERFILE
+    | DATAGUARDCONFIG
+    | FLASHBACK
+    | CHANGETRACKING
+    | DUMPSET
+    | XTRANSPORT
+    | AUTOBACKUP
+    ;
+
+fileTypeTag
+    : currentBackup
+    | tablespaceName
+    | groupGroup POUND_
+    | threadThread POUND_ UL_ seqSequence POUND_
+    | hasspfileTimestamp
+    | serverParameterFile
+    | dbName
+    | logLog POUND_
+    | changeTrackingFile
+    | userObj POUND_ UL_ fileName POUND_
+    ;
+
+currentBackup
+    : identifier
+    ;
+
+groupGroup
+    : identifier
+    ;
+
+threadThread
+    : identifier
+    ;
+
+seqSequence
+    : identifier
+    ;
+
+hasspfileTimestamp
+    : timestampValue
+    ;
+
+serverParameterFile
+    : identifier
+    ;
+
+logLog
+    : identifier
+    ;
+
+changeTrackingFile
+    : identifier
+    ;
+
+userObj
+    : identifier
+    ;
+
+numericFileName
+    : PLUS_ diskgroupName DOT_ fileNumber DOT_ incarnationNumber
+    ;
+
+incompleteFileName
+    : PLUS_ diskgroupName (LP_ templateName RP_)?
+    ;
+
+aliasFileName
+    : PLUS_ diskgroupName (LP_ templateName RP_)? SLASH_ aliasName
     ;
 
 fileNumber
+    : INTEGER_
+    ;
+
+incarnationNumber
     : INTEGER_
     ;
 
@@ -656,7 +757,7 @@ templateName
     ;
 
 aliasName
-    : identifier
+    : pathString
     ;
 
 domain
@@ -1240,4 +1341,96 @@ libName
 
 externalDatatype
     : dataType
+    ;
+    
+capacityUnit
+    : ('K' | 'M' | 'G' | 'T' | 'P' | 'E')
+    ;
+
+attributeDimensionName
+    : identifier
+    ;
+
+sequenceName
+    : identifier
+    ;
+    
+spfileName
+    : STRING_
+    ;
+
+pfileName
+    : STRING_
+    ;
+
+characterSetName
+    : identifier
+    ;
+
+quotaUnit
+    : ('M' | 'G' | 'T' | 'P' | 'E')
+    ;
+
+siteName
+    : identifier
+    ;
+
+diskName
+    : identifier
+    ;
+
+searchString
+    : STRING_
+    ;
+
+attributeValue
+    : identifier
+    ;
+
+profileName
+    : identifier
+    ;
+
+joinGroupName
+    : identifier
+    ;
+
+restorePointName
+    : identifier
+    ;
+
+libraryName
+    : identifier
+    ;
+
+matchString
+    : IDENTIFIER_ | ASTERISK_
+    ;
+
+parameterType
+    : identifier
+    ;
+
+returnType
+    : identifier
+    ;
+
+failgroupName
+    : identifier
+    ;
+
+asmVolumeName
+    : identifier
+    ;
+
+mountpathName
+    : identifier
+    ;
+
+usageName
+    : identifier
+    ;
+
+usergroupName
+    : STRING_
     ;

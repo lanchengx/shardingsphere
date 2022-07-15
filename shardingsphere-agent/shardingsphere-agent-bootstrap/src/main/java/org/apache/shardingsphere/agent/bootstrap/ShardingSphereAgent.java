@@ -30,7 +30,7 @@ import org.apache.shardingsphere.agent.core.bytebuddy.transformer.ShardingSphere
 import org.apache.shardingsphere.agent.core.config.registry.AgentConfigurationRegistry;
 import org.apache.shardingsphere.agent.core.config.loader.AgentConfigurationLoader;
 import org.apache.shardingsphere.agent.core.plugin.PluginBootServiceManager;
-import org.apache.shardingsphere.agent.core.plugin.ApmPluginLoader;
+import org.apache.shardingsphere.agent.core.plugin.AgentPluginLoader;
 
 import java.io.IOException;
 import java.lang.instrument.Instrumentation;
@@ -50,25 +50,25 @@ public final class ShardingSphereAgent {
      * @throws IOException IO exception
      */
     public static void premain(final String arguments, final Instrumentation instrumentation) throws IOException {
-        AgentConfiguration agentConfiguration = AgentConfigurationLoader.load();
-        AgentConfigurationRegistry.INSTANCE.put(agentConfiguration);
-        ApmPluginLoader loader = createPluginLoader();
+        AgentConfiguration agentConfig = AgentConfigurationLoader.load();
+        AgentConfigurationRegistry.INSTANCE.put(agentConfig);
+        AgentPluginLoader loader = createPluginLoader();
         setUpAgentBuilder(instrumentation, loader);
-        setupPluginBootService(agentConfiguration.getPlugins());
+        setupPluginBootService(agentConfig.getPlugins());
     }
     
-    private static ApmPluginLoader createPluginLoader() throws IOException {
-        ApmPluginLoader result = ApmPluginLoader.getInstance();
+    private static AgentPluginLoader createPluginLoader() throws IOException {
+        AgentPluginLoader result = AgentPluginLoader.getInstance();
         result.loadAllPlugins();
         return result;
     }
     
-    private static void setupPluginBootService(final Map<String, PluginConfiguration> pluginConfigurationMap) {
-        PluginBootServiceManager.startAllServices(pluginConfigurationMap);
+    private static void setupPluginBootService(final Map<String, PluginConfiguration> pluginConfigs) {
+        PluginBootServiceManager.startAllServices(pluginConfigs);
         Runtime.getRuntime().addShutdownHook(new Thread(PluginBootServiceManager::closeAllServices));
     }
     
-    private static void setUpAgentBuilder(final Instrumentation instrumentation, final ApmPluginLoader loader) {
+    private static void setUpAgentBuilder(final Instrumentation instrumentation, final AgentPluginLoader loader) {
         AgentBuilder agentBuilder = new AgentBuilder.Default().with(new ByteBuddy().with(TypeValidation.ENABLED))
                 .ignore(ElementMatchers.isSynthetic()).or(ElementMatchers.nameStartsWith("org.apache.shardingsphere.agent."));
         agentBuilder.type(loader.typeMatcher())

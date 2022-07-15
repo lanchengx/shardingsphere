@@ -19,9 +19,9 @@ package org.apache.shardingsphere.spi;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
-import org.apache.shardingsphere.spi.exception.ServiceLoaderInstantiationException;
+import lombok.SneakyThrows;
+import org.apache.shardingsphere.spi.annotation.SingletonSPI;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -57,45 +57,35 @@ public final class ShardingSphereServiceLoader {
     }
     
     /**
-     * Get singleton service instances.
-     *
-     * @param service service class
+     * Get service instances.
+     * 
+     * @param serviceInterface service interface
      * @param <T> type of service
      * @return service instances
      */
-    @SuppressWarnings("unchecked")
-    public static <T> Collection<T> getSingletonServiceInstances(final Class<T> service) {
-        return (Collection<T>) SERVICES.getOrDefault(service, Collections.emptyList());
+    public static <T> Collection<T> getServiceInstances(final Class<T> serviceInterface) {
+        return null == serviceInterface.getAnnotation(SingletonSPI.class) ? createNewServiceInstances(serviceInterface) : getSingletonServiceInstances(serviceInterface);
     }
     
-    /**
-     * New service instances.
-     *
-     * @param service service class
-     * @param <T> type of service
-     * @return service instances
-     */
+    @SneakyThrows(ReflectiveOperationException.class)
     @SuppressWarnings("unchecked")
-    public static <T> Collection<T> newServiceInstances(final Class<T> service) {
-        if (!SERVICES.containsKey(service)) {
+    private static <T> Collection<T> createNewServiceInstances(final Class<T> serviceInterface) {
+        if (!SERVICES.containsKey(serviceInterface)) {
             return Collections.emptyList();
         }
-        Collection<Object> services = SERVICES.get(service);
+        Collection<Object> services = SERVICES.get(serviceInterface);
         if (services.isEmpty()) {
             return Collections.emptyList();
         }
-        Collection<T> result = new ArrayList<>(services.size());
+        Collection<T> result = new LinkedList<>();
         for (Object each : services) {
-            result.add((T) newServiceInstance(each.getClass()));
+            result.add((T) each.getClass().getDeclaredConstructor().newInstance());
         }
         return result;
     }
     
-    private static Object newServiceInstance(final Class<?> clazz) {
-        try {
-            return clazz.newInstance();
-        } catch (final InstantiationException | IllegalAccessException ex) {
-            throw new ServiceLoaderInstantiationException(clazz, ex);
-        }
+    @SuppressWarnings("unchecked")
+    private static <T> Collection<T> getSingletonServiceInstances(final Class<T> serviceInterface) {
+        return (Collection<T>) SERVICES.getOrDefault(serviceInterface, Collections.emptyList());
     }
 }

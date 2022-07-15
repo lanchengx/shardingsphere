@@ -25,6 +25,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -33,18 +34,13 @@ import java.util.Optional;
 public final class OracleDatabaseType implements DatabaseType {
     
     @Override
-    public String getName() {
-        return "Oracle";
-    }
-    
-    @Override
     public QuoteCharacter getQuoteCharacter() {
         return QuoteCharacter.QUOTE;
     }
     
     @Override
     public Collection<String> getJdbcUrlPrefixes() {
-        return Collections.singleton(String.format("jdbc:%s:", getName().toLowerCase()));
+        return Collections.singleton(String.format("jdbc:%s:", getType().toLowerCase()));
     }
     
     @Override
@@ -52,12 +48,6 @@ public final class OracleDatabaseType implements DatabaseType {
         return new OracleDataSourceMetaData(url, username);
     }
     
-    @Override
-    public Optional<String> getDataSourceClassName() {
-        return Optional.empty();
-    }
-    
-    @SuppressWarnings("ReturnOfNull")
     @Override
     public String getSchema(final Connection connection) {
         try {
@@ -73,12 +63,17 @@ public final class OracleDatabaseType implements DatabaseType {
     }
     
     @Override
-    public Collection<String> getSystemDatabases() {
-        return Collections.emptyList();
+    public Map<String, Collection<String>> getSystemDatabaseSchemaMap() {
+        return Collections.emptyMap();
     }
     
     @Override
     public Collection<String> getSystemSchemas() {
         return Collections.emptyList();
+    }
+    
+    @Override
+    public String getType() {
+        return "Oracle";
     }
 }

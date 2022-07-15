@@ -17,11 +17,13 @@
 
 package org.apache.shardingsphere.datetime.database.provider;
 
-import org.apache.shardingsphere.spi.typed.TypedSPI;
+import org.apache.shardingsphere.spi.annotation.SingletonSPI;
+import org.apache.shardingsphere.spi.type.typed.TypedSPI;
 
 /**
  * Datetime loading SQL provider.
  */
+@SingletonSPI
 public interface DatetimeLoadingSQLProvider extends TypedSPI {
     
     /**

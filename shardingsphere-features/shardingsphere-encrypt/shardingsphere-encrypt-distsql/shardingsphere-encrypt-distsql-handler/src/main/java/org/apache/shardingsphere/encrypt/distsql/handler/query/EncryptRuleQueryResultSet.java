@@ -17,12 +17,14 @@
 
 package org.apache.shardingsphere.encrypt.distsql.handler.query;
 
+import com.google.common.base.Preconditions;
 import org.apache.shardingsphere.encrypt.api.config.EncryptRuleConfiguration;
 import org.apache.shardingsphere.encrypt.api.config.rule.EncryptTableRuleConfiguration;
 import org.apache.shardingsphere.encrypt.distsql.parser.statement.ShowEncryptRulesStatement;
+import org.apache.shardingsphere.encrypt.rule.EncryptRule;
 import org.apache.shardingsphere.infra.config.algorithm.ShardingSphereAlgorithmConfiguration;
 import org.apache.shardingsphere.infra.distsql.query.DistSQLResultSet;
-import org.apache.shardingsphere.infra.metadata.ShardingSphereMetaData;
+import org.apache.shardingsphere.infra.metadata.database.ShardingSphereDatabase;
 import org.apache.shardingsphere.infra.properties.PropertiesConverter;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.SQLStatement;
 
@@ -37,33 +39,34 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * Result set for show encrypt rule.
+ * Query result set for show encrypt rule.
  */
 public final class EncryptRuleQueryResultSet implements DistSQLResultSet {
     
     private Iterator<Collection<Object>> data = Collections.emptyIterator();
     
     @Override
-    public void init(final ShardingSphereMetaData metaData, final SQLStatement sqlStatement) {
-        Optional<EncryptRuleConfiguration> ruleConfiguration = metaData.getRuleMetaData().findRuleConfiguration(EncryptRuleConfiguration.class).stream().findAny();
-        ruleConfiguration.ifPresent(op -> data = buildData(op, (ShowEncryptRulesStatement) sqlStatement).iterator());
+    public void init(final ShardingSphereDatabase database, final SQLStatement sqlStatement) {
+        Optional<EncryptRule> rule = database.getRuleMetaData().findSingleRule(EncryptRule.class);
+        Preconditions.checkState(rule.isPresent());
+        data = buildData((EncryptRuleConfiguration) rule.get().getConfiguration(), (ShowEncryptRulesStatement) sqlStatement).iterator();
     }
     
-    private Collection<Collection<Object>> buildData(final EncryptRuleConfiguration configuration, final ShowEncryptRulesStatement sqlStatement) {
-        return configuration.getTables().stream().filter(each -> Objects.isNull(sqlStatement.getTableName()) || each.getName().equals(sqlStatement.getTableName()))
-                .map(each -> buildColumnData(each, configuration.getEncryptors())).flatMap(Collection::stream).collect(Collectors.toCollection(LinkedList::new));
+    private Collection<Collection<Object>> buildData(final EncryptRuleConfiguration ruleConfig, final ShowEncryptRulesStatement sqlStatement) {
+        return ruleConfig.getTables().stream().filter(each -> Objects.isNull(sqlStatement.getTableName()) || each.getName().equals(sqlStatement.getTableName()))
+                .map(each -> buildColumnData(each, ruleConfig.getEncryptors())).flatMap(Collection::stream).collect(Collectors.toList());
     }
     
-    private Collection<Collection<Object>> buildColumnData(final EncryptTableRuleConfiguration tableRuleConfiguration, final Map<String, ShardingSphereAlgorithmConfiguration> algorithmMap) {
+    private Collection<Collection<Object>> buildColumnData(final EncryptTableRuleConfiguration tableRuleConfig, final Map<String, ShardingSphereAlgorithmConfiguration> algorithmMap) {
         Collection<Collection<Object>> result = new LinkedList<>();
-        tableRuleConfiguration.getColumns().forEach(each -> {
-            ShardingSphereAlgorithmConfiguration algorithmConfiguration = algorithmMap.get(each.getEncryptorName());
-            result.add(Arrays.asList(tableRuleConfiguration.getName(), each.getLogicColumn(), nullToEmptyString(each.getLogicDataType()),
-                    each.getCipherColumn(), nullToEmptyString(each.getCipherDataType()),
-                    nullToEmptyString(each.getPlainColumn()), nullToEmptyString(each.getPlainDataType()),
-                    nullToEmptyString(each.getAssistedQueryColumn()), nullToEmptyString(each.getAssistedQueryDataType()),
-                    algorithmConfiguration.getType(), PropertiesConverter.convert(algorithmConfiguration.getProps()),
-                    Objects.isNull(tableRuleConfiguration.getQueryWithCipherColumn()) ? Boolean.TRUE.toString() : tableRuleConfiguration.getQueryWithCipherColumn().toString()));
+        tableRuleConfig.getColumns().forEach(each -> {
+            ShardingSphereAlgorithmConfiguration algorithmConfig = algorithmMap.get(each.getEncryptorName());
+            result.add(Arrays.asList(tableRuleConfig.getName(), each.getLogicColumn(), nullToEmptyString(null),
+                    each.getCipherColumn(), nullToEmptyString(null),
+                    nullToEmptyString(each.getPlainColumn()), nullToEmptyString(null),
+                    nullToEmptyString(each.getAssistedQueryColumn()), nullToEmptyString(null),
+                    algorithmConfig.getType(), PropertiesConverter.convert(algorithmConfig.getProps()),
+                    Objects.isNull(tableRuleConfig.getQueryWithCipherColumn()) ? Boolean.TRUE.toString() : tableRuleConfig.getQueryWithCipherColumn().toString()));
         });
         return result;
     }

@@ -9,12 +9,7 @@ chapter = true
 
 Apache ShardingSphere 是一套完善的产品，使用场景非常广泛。
 除生产环境的集群部署之外，还为工程师在开发和自动化测试等场景提供相应的运行模式。
-Apache ShardingSphere 提供的 3 种运行模式分别是内存模式、单机模式和集群模式。
-
-## 内存模式
-
-初始化配置或执行 SQL 等造成的元数据结果变更的操作，仅在当前进程中生效。
-适用于集成测试的环境启动，方便开发人员在整合功能测试中集成 Apache ShardingSphere 而无需清理运行痕迹。
+Apache ShardingSphere 提供的 2 种运行模式分别是单机模式和集群模式。
 
 ## 单机模式
 
@@ -27,3 +22,5 @@ Apache ShardingSphere 提供的 3 种运行模式分别是内存模式、单机�
 提供了多个 Apache ShardingSphere 实例之间的元数据共享和分布式场景下状态协调的能力。
 在真实部署上线的生产环境，必须使用集群模式。它能够提供计算能力水平扩展和高可用等分布式系统必备的能力。
 集群环境需要通过独立部署的注册中心来存储元数据和协调节点状态。 
+
+**源码：https://github.com/apache/shardingsphere/tree/master/shardingsphere-mode**

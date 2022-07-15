@@ -21,13 +21,13 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.apache.calcite.config.CalciteConnectionProperty;
 import org.apache.shardingsphere.infra.database.type.DatabaseType;
-import org.apache.shardingsphere.infra.metadata.ShardingSphereMetaData;
 import org.apache.shardingsphere.infra.federation.optimizer.context.parser.dialect.OptimizerSQLDialectBuilderFactory;
+import org.apache.shardingsphere.infra.metadata.database.ShardingSphereDatabase;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Optimizer parser context factory.
@@ -39,22 +39,32 @@ public final class OptimizerParserContextFactory {
     /**
      * Create optimizer parser context map.
      *
-     * @param metaDataMap meta data map
+     * @param databases databases
      * @return created optimizer parser context map
      */
-    public static Map<String, OptimizerParserContext> create(final Map<String, ShardingSphereMetaData> metaDataMap) {
-        Map<String, OptimizerParserContext> result = new HashMap<>();
-        for (Entry<String, ShardingSphereMetaData> entry : metaDataMap.entrySet()) {
-            DatabaseType databaseType = entry.getValue().getResource().getDatabaseType();
+    public static Map<String, OptimizerParserContext> create(final Map<String, ShardingSphereDatabase> databases) {
+        Map<String, OptimizerParserContext> result = new ConcurrentHashMap<>();
+        for (Entry<String, ShardingSphereDatabase> entry : databases.entrySet()) {
+            DatabaseType databaseType = entry.getValue().getProtocolType();
             result.put(entry.getKey(), new OptimizerParserContext(databaseType, createSQLDialectProperties(databaseType)));
         }
         return result;
     }
     
+    /**
+     * Create optimizer parser context.
+     * 
+     * @param databaseType database type
+     * @return optimizer parser context
+     */
+    public static OptimizerParserContext create(final DatabaseType databaseType) {
+        return new OptimizerParserContext(databaseType, createSQLDialectProperties(databaseType));
+    }
+    
     private static Properties createSQLDialectProperties(final DatabaseType databaseType) {
         Properties result = new Properties();
         result.setProperty(CalciteConnectionProperty.TIME_ZONE.camelName(), "UTC");
-        result.putAll(OptimizerSQLDialectBuilderFactory.build(databaseType, result));
+        result.putAll(OptimizerSQLDialectBuilderFactory.build(databaseType));
         return result;
     }
 }

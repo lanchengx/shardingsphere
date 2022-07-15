@@ -22,9 +22,9 @@ import io.netty.channel.ChannelHandlerContext;
 import org.apache.shardingsphere.db.protocol.CommonConstants;
 import org.apache.shardingsphere.db.protocol.payload.PacketPayload;
 import org.apache.shardingsphere.db.protocol.postgresql.constant.PostgreSQLAuthenticationMethod;
+import org.apache.shardingsphere.proxy.backend.text.admin.postgresql.PostgreSQLCharacterSets;
 import org.apache.shardingsphere.db.protocol.postgresql.constant.PostgreSQLErrorCode;
 import org.apache.shardingsphere.db.protocol.postgresql.constant.PostgreSQLServerInfo;
-import org.apache.shardingsphere.db.protocol.postgresql.packet.command.query.extended.PostgreSQLPreparedStatementRegistry;
 import org.apache.shardingsphere.db.protocol.postgresql.packet.generic.PostgreSQLReadyForQueryPacket;
 import org.apache.shardingsphere.db.protocol.postgresql.packet.handshake.PostgreSQLAuthenticationOKPacket;
 import org.apache.shardingsphere.db.protocol.postgresql.packet.handshake.PostgreSQLComStartupPacket;
@@ -45,8 +45,6 @@ import org.apache.shardingsphere.proxy.frontend.postgresql.authentication.authen
 import org.apache.shardingsphere.proxy.frontend.postgresql.authentication.exception.InvalidAuthorizationSpecificationException;
 import org.apache.shardingsphere.proxy.frontend.postgresql.authentication.exception.PostgreSQLAuthenticationException;
 import org.apache.shardingsphere.proxy.frontend.postgresql.authentication.exception.PostgreSQLProtocolViolationException;
-
-import java.nio.charset.Charset;
 
 /**
  * Authentication engine for PostgreSQL.
@@ -69,9 +67,7 @@ public final class PostgreSQLAuthenticationEngine implements AuthenticationEngin
     
     @Override
     public int handshake(final ChannelHandlerContext context) {
-        int result = ConnectionIdGenerator.getInstance().nextId();
-        PostgreSQLPreparedStatementRegistry.getInstance().register(result);
-        return result;
+        return ConnectionIdGenerator.getInstance().nextId();
     }
     
     @Override
@@ -88,7 +84,7 @@ public final class PostgreSQLAuthenticationEngine implements AuthenticationEngin
         startupMessageReceived = true;
         PostgreSQLComStartupPacket comStartupPacket = new PostgreSQLComStartupPacket(payload);
         clientEncoding = comStartupPacket.getClientEncoding();
-        context.channel().attr(CommonConstants.CHARSET_ATTRIBUTE_KEY).set(Charset.forName(clientEncoding));
+        context.channel().attr(CommonConstants.CHARSET_ATTRIBUTE_KEY).set(PostgreSQLCharacterSets.findCharacterSet(clientEncoding));
         String user = comStartupPacket.getUser();
         if (Strings.isNullOrEmpty(user)) {
             throw new InvalidAuthorizationSpecificationException("no PostgreSQL user name specified in startup packet");

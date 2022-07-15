@@ -20,13 +20,11 @@ package org.apache.shardingsphere.infra.instance;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
-import org.apache.shardingsphere.infra.instance.definition.InstanceDefinition;
+import org.apache.shardingsphere.infra.instance.metadata.InstanceMetaData;
 import org.apache.shardingsphere.infra.state.StateContext;
 import org.apache.shardingsphere.infra.state.StateType;
 
 import java.util.Collection;
-import java.util.LinkedHashSet;
-import java.util.Set;
 
 /**
  * Instance of compute node.
@@ -36,15 +34,11 @@ import java.util.Set;
 @Setter
 public final class ComputeNodeInstance {
     
-    private final InstanceDefinition instanceDefinition;
-    
-    private Set<String> labels;
+    private final InstanceMetaData instanceMetaData;
     
     private final StateContext state = new StateContext();
     
-    private Long workerId;
-    
-    private String xaRecoveryId;
+    private Collection<String> labels;
     
     /**
      * Set labels.
@@ -55,7 +49,7 @@ public final class ComputeNodeInstance {
         if (null == labels) {
             return;
         }
-        this.labels = new LinkedHashSet<>(labels);
+        this.labels = labels;
     }
     
     /**
@@ -65,5 +59,14 @@ public final class ComputeNodeInstance {
      */
     public void switchState(final Collection<String> status) {
         state.switchState(StateType.CIRCUIT_BREAK, null != status && status.contains(StateType.CIRCUIT_BREAK.name()));
+    }
+    
+    /**
+     * Get current instance id.
+     *
+     * @return current instance id
+     */
+    public String getCurrentInstanceId() {
+        return instanceMetaData.getId();
     }
 }

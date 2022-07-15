@@ -17,9 +17,8 @@
 
 package org.apache.shardingsphere.driver.state.circuit.statement;
 
-import lombok.Getter;
-import org.apache.shardingsphere.driver.state.circuit.connection.CircuitBreakerConnection;
 import org.apache.shardingsphere.driver.jdbc.unsupported.AbstractUnsupportedOperationStatement;
+import org.apache.shardingsphere.driver.state.circuit.connection.CircuitBreakerConnection;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -28,7 +27,6 @@ import java.sql.SQLWarning;
 /**
  * Circuit breaker statement.
  */
-@Getter
 public final class CircuitBreakerStatement extends AbstractUnsupportedOperationStatement {
     
     @Override
@@ -97,16 +95,16 @@ public final class CircuitBreakerStatement extends AbstractUnsupportedOperationS
     public int getFetchSize() {
         return 0;
     }
-
+    
     @Override
     public int getFetchDirection() {
         return ResultSet.FETCH_FORWARD;
     }
-
+    
     @Override
     public void setFetchDirection(final int direction) {
     }
-
+    
     @Override
     public int getResultSetConcurrency() {
         return ResultSet.CONCUR_READ_ONLY;

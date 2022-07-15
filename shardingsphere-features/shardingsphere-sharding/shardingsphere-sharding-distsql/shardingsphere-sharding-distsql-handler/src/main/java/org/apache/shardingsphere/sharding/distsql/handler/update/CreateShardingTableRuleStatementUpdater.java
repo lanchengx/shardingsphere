@@ -19,30 +19,21 @@ package org.apache.shardingsphere.sharding.distsql.handler.update;
 
 import org.apache.shardingsphere.infra.distsql.exception.DistSQLException;
 import org.apache.shardingsphere.infra.distsql.update.RuleDefinitionCreateUpdater;
-import org.apache.shardingsphere.infra.metadata.ShardingSphereMetaData;
+import org.apache.shardingsphere.infra.metadata.database.ShardingSphereDatabase;
 import org.apache.shardingsphere.sharding.api.config.ShardingRuleConfiguration;
 import org.apache.shardingsphere.sharding.distsql.handler.checker.ShardingTableRuleStatementChecker;
 import org.apache.shardingsphere.sharding.distsql.handler.converter.ShardingTableRuleStatementConverter;
 import org.apache.shardingsphere.sharding.distsql.parser.statement.CreateShardingTableRuleStatement;
-import org.apache.shardingsphere.sharding.spi.KeyGenerateAlgorithm;
-import org.apache.shardingsphere.sharding.spi.ShardingAlgorithm;
-import org.apache.shardingsphere.spi.ShardingSphereServiceLoader;
 
 /**
  * Create sharding table rule statement updater.
  */
 public final class CreateShardingTableRuleStatementUpdater implements RuleDefinitionCreateUpdater<CreateShardingTableRuleStatement, ShardingRuleConfiguration> {
     
-    static {
-        // TODO consider about register once only
-        ShardingSphereServiceLoader.register(ShardingAlgorithm.class);
-        ShardingSphereServiceLoader.register(KeyGenerateAlgorithm.class);
-    }
-    
     @Override
-    public void checkSQLStatement(final ShardingSphereMetaData shardingSphereMetaData, final CreateShardingTableRuleStatement sqlStatement,
+    public void checkSQLStatement(final ShardingSphereDatabase database, final CreateShardingTableRuleStatement sqlStatement,
                                   final ShardingRuleConfiguration currentRuleConfig) throws DistSQLException {
-        ShardingTableRuleStatementChecker.checkCreation(shardingSphereMetaData, sqlStatement.getRules(), currentRuleConfig);
+        ShardingTableRuleStatementChecker.checkCreation(database, sqlStatement.getRules(), currentRuleConfig);
     }
     
     @Override

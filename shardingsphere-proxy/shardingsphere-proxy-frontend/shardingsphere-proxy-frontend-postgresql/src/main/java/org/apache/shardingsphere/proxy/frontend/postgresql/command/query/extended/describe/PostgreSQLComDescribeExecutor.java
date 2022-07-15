@@ -19,24 +19,25 @@ package org.apache.shardingsphere.proxy.frontend.postgresql.command.query.extend
 
 import lombok.RequiredArgsConstructor;
 import org.apache.shardingsphere.db.protocol.packet.DatabasePacket;
+import org.apache.shardingsphere.db.protocol.postgresql.constant.PostgreSQLErrorCode;
 import org.apache.shardingsphere.db.protocol.postgresql.packet.PostgreSQLPacket;
 import org.apache.shardingsphere.db.protocol.postgresql.packet.command.query.PostgreSQLColumnDescription;
 import org.apache.shardingsphere.db.protocol.postgresql.packet.command.query.PostgreSQLNoDataPacket;
 import org.apache.shardingsphere.db.protocol.postgresql.packet.command.query.PostgreSQLRowDescriptionPacket;
 import org.apache.shardingsphere.db.protocol.postgresql.packet.command.query.extended.PostgreSQLColumnType;
-import org.apache.shardingsphere.db.protocol.postgresql.packet.command.query.extended.PostgreSQLPreparedStatement;
-import org.apache.shardingsphere.db.protocol.postgresql.packet.command.query.extended.PostgreSQLPreparedStatementRegistry;
+import org.apache.shardingsphere.proxy.frontend.postgresql.command.query.extended.PostgreSQLPreparedStatement;
 import org.apache.shardingsphere.db.protocol.postgresql.packet.command.query.extended.describe.PostgreSQLComDescribePacket;
 import org.apache.shardingsphere.infra.binder.LogicSQL;
 import org.apache.shardingsphere.infra.binder.SQLStatementContextFactory;
 import org.apache.shardingsphere.infra.binder.statement.SQLStatementContext;
 import org.apache.shardingsphere.infra.context.kernel.KernelProcessor;
+import org.apache.shardingsphere.infra.database.type.DatabaseTypeEngine;
 import org.apache.shardingsphere.infra.executor.sql.context.ExecutionContext;
 import org.apache.shardingsphere.infra.executor.sql.context.ExecutionUnit;
 import org.apache.shardingsphere.infra.executor.sql.execute.engine.ConnectionMode;
-import org.apache.shardingsphere.infra.metadata.ShardingSphereMetaData;
-import org.apache.shardingsphere.infra.metadata.schema.model.ColumnMetaData;
-import org.apache.shardingsphere.infra.metadata.schema.model.TableMetaData;
+import org.apache.shardingsphere.infra.metadata.database.ShardingSphereDatabase;
+import org.apache.shardingsphere.infra.metadata.database.schema.decorator.model.ShardingSphereColumn;
+import org.apache.shardingsphere.infra.metadata.database.schema.decorator.model.ShardingSphereTable;
 import org.apache.shardingsphere.mode.metadata.MetaDataContexts;
 import org.apache.shardingsphere.proxy.backend.communication.jdbc.connection.JDBCBackendConnection;
 import org.apache.shardingsphere.proxy.backend.context.ProxyContext;
@@ -63,6 +64,7 @@ import java.util.ListIterator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 /**
@@ -91,7 +93,7 @@ public final class PostgreSQLComDescribeExecutor implements CommandExecutor {
     
     private List<DatabasePacket<?>> describePreparedStatement() throws SQLException {
         List<DatabasePacket<?>> result = new ArrayList<>(2);
-        PostgreSQLPreparedStatement preparedStatement = PostgreSQLPreparedStatementRegistry.getInstance().get(connectionSession.getConnectionId(), packet.getName());
+        PostgreSQLPreparedStatement preparedStatement = connectionSession.getPreparedStatementRegistry().getPreparedStatement(packet.getName());
         result.add(preparedStatement.describeParameters());
         Optional<PostgreSQLPacket> rowDescription = preparedStatement.describeRows();
         if (rowDescription.isPresent()) {
@@ -105,13 +107,13 @@ public final class PostgreSQLComDescribeExecutor implements CommandExecutor {
     
     private void tryDescribePreparedStatement(final PostgreSQLPreparedStatement preparedStatement) throws SQLException {
         if (preparedStatement.getSqlStatement() instanceof InsertStatement) {
-            describeInsertStatementByShardingSphereMetaData(preparedStatement);
+            describeInsertStatementByDatabaseMetaData(preparedStatement);
             return;
         }
         tryDescribePreparedStatementByJDBC(preparedStatement);
     }
     
-    private void describeInsertStatementByShardingSphereMetaData(final PostgreSQLPreparedStatement preparedStatement) {
+    private void describeInsertStatementByDatabaseMetaData(final PostgreSQLPreparedStatement preparedStatement) throws SQLException {
         if (!preparedStatement.describeRows().isPresent()) {
             // TODO Consider the SQL `insert into table (col) values ($1) returning id`
             preparedStatement.setRowDescription(PostgreSQLNoDataPacket.getInstance());
@@ -124,13 +126,17 @@ public final class PostgreSQLComDescribeExecutor implements CommandExecutor {
         if (unspecifiedTypeParameterIndexes.isEmpty()) {
             return;
         }
-        String schemaName = connectionSession.getSchemaName();
+        String databaseName = connectionSession.getDatabaseName();
         String logicTableName = insertStatement.getTable().getTableName().getIdentifier().getValue();
-        TableMetaData tableMetaData = ProxyContext.getInstance().getMetaData(schemaName).getSchema().get(logicTableName);
-        Map<String, ColumnMetaData> columnMetaData = tableMetaData.getColumns();
+        ShardingSphereDatabase database = ProxyContext.getInstance().getDatabase(databaseName);
+        String schemaName = insertStatement.getTable().getOwner().map(optional -> optional.getIdentifier()
+                .getValue()).orElseGet(() -> DatabaseTypeEngine.getDefaultSchemaName(database.getResource().getDatabaseType(), databaseName));
+        ShardingSphereTable table = database.getSchemas().get(schemaName).get(logicTableName);
+        Map<String, ShardingSphereColumn> columns = table.getColumns();
+        Map<String, ShardingSphereColumn> caseInsensitiveColumns = null;
         List<String> columnNames;
         if (insertStatement.getColumns().isEmpty()) {
-            columnNames = new ArrayList<>(tableMetaData.getColumns().keySet());
+            columnNames = new ArrayList<>(table.getColumns().keySet());
         } else {
             columnNames = insertStatement.getColumns().stream().map(each -> each.getIdentifier().getValue()).collect(Collectors.toList());
         }
@@ -149,7 +155,18 @@ public final class PostgreSQLComDescribeExecutor implements CommandExecutor {
                     continue;
                 }
                 String columnName = columnNames.get(columnIndex);
-                PostgreSQLColumnType parameterType = PostgreSQLColumnType.valueOfJDBCType(columnMetaData.get(columnName).getDataType());
+                ShardingSphereColumn column = columns.get(columnName);
+                if (null == column) {
+                    if (null == caseInsensitiveColumns) {
+                        caseInsensitiveColumns = convertToCaseInsensitiveColumnMetaDataMap(columns);
+                    }
+                    column = caseInsensitiveColumns.get(columnName);
+                }
+                if (null == column) {
+                    String reason = String.format("Column \"%s\" of relation \"%s\" does not exist. Please check the SQL or execute REFRESH TABLE METADATA.", columnName, logicTableName);
+                    throw new SQLException(reason, PostgreSQLErrorCode.UNDEFINED_COLUMN.getErrorCode());
+                }
+                PostgreSQLColumnType parameterType = PostgreSQLColumnType.valueOfJDBCType(column.getDataType());
                 preparedStatement.getParameterTypes().set(parameterMarkerIndex++, parameterType);
             }
         }
@@ -166,17 +183,24 @@ public final class PostgreSQLComDescribeExecutor implements CommandExecutor {
         return unspecifiedTypeParameterIndexes;
     }
     
+    private Map<String, ShardingSphereColumn> convertToCaseInsensitiveColumnMetaDataMap(final Map<String, ShardingSphereColumn> columns) {
+        Map<String, ShardingSphereColumn> result = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        result.putAll(columns);
+        return result;
+    }
+    
     private void tryDescribePreparedStatementByJDBC(final PostgreSQLPreparedStatement preparedStatement) throws SQLException {
         if (!(connectionSession.getBackendConnection() instanceof JDBCBackendConnection)) {
             return;
         }
         MetaDataContexts metaDataContexts = ProxyContext.getInstance().getContextManager().getMetaDataContexts();
-        String schemaName = connectionSession.getSchemaName();
+        String databaseName = connectionSession.getDatabaseName();
         SQLStatementContext<?> sqlStatementContext =
-                SQLStatementContextFactory.newInstance(metaDataContexts.getMetaDataMap(), preparedStatement.getSqlStatement(), schemaName);
+                SQLStatementContextFactory.newInstance(metaDataContexts.getMetaData().getDatabases(), preparedStatement.getSqlStatement(), databaseName);
         LogicSQL logicSQL = new LogicSQL(sqlStatementContext, preparedStatement.getSql(), Collections.emptyList());
-        ShardingSphereMetaData metaData = ProxyContext.getInstance().getMetaData(schemaName);
-        ExecutionContext executionContext = new KernelProcessor().generateExecutionContext(logicSQL, metaData, metaDataContexts.getProps());
+        ShardingSphereDatabase database = ProxyContext.getInstance().getDatabase(databaseName);
+        ExecutionContext executionContext = new KernelProcessor().generateExecutionContext(
+                logicSQL, database, metaDataContexts.getMetaData().getGlobalRuleMetaData(), metaDataContexts.getMetaData().getProps());
         ExecutionUnit executionUnitSample = executionContext.getExecutionUnits().iterator().next();
         JDBCBackendConnection backendConnection = (JDBCBackendConnection) connectionSession.getBackendConnection();
         Connection connection = backendConnection.getConnections(executionUnitSample.getDataSourceName(), 1, ConnectionMode.CONNECTION_STRICTLY).iterator().next();

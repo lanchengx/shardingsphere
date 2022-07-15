@@ -18,14 +18,9 @@
 # You can get more configuration items about proxy conf from the following URL:
 # https://shardingsphere.apache.org/document/current/en/user-manual/shardingsphere-proxy/configuration/
 
-mode:
-  type: Cluster
-  repository:
-    type: ZooKeeper
-    props:
-      namespace: demo_yaml
-      server-lists: localhost:2181
-  overwrite: false
+<#if mode?exists>
+    <#include "mode/${mode}.ftl" />
+</#if>
 
 rules:
   - !AUTHORITY
@@ -33,7 +28,7 @@ rules:
       - root@:root
       - sharding@:sharding
     provider:
-      type: ALL_PRIVILEGES_PERMITTED
+      type: ALL_PERMITTED
 
 props:
   max-connections-size-per-query: 1
@@ -43,4 +38,3 @@ props:
   sql-show: false
   check-table-metadata-enabled: false
   sql-simple: false
-  check-duplicate-table-enabled: false

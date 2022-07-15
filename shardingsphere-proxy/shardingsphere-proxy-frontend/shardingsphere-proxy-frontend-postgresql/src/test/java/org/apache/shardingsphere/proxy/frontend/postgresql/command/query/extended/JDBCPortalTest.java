@@ -24,7 +24,6 @@ import org.apache.shardingsphere.db.protocol.postgresql.packet.command.query.Pos
 import org.apache.shardingsphere.db.protocol.postgresql.packet.command.query.PostgreSQLEmptyQueryResponsePacket;
 import org.apache.shardingsphere.db.protocol.postgresql.packet.command.query.PostgreSQLNoDataPacket;
 import org.apache.shardingsphere.db.protocol.postgresql.packet.command.query.PostgreSQLRowDescriptionPacket;
-import org.apache.shardingsphere.db.protocol.postgresql.packet.command.query.extended.PostgreSQLPreparedStatement;
 import org.apache.shardingsphere.db.protocol.postgresql.packet.command.query.extended.execute.PostgreSQLPortalSuspendedPacket;
 import org.apache.shardingsphere.db.protocol.postgresql.packet.generic.PostgreSQLCommandCompletePacket;
 import org.apache.shardingsphere.infra.config.props.ConfigurationPropertyKey;
@@ -32,18 +31,17 @@ import org.apache.shardingsphere.mode.manager.ContextManager;
 import org.apache.shardingsphere.proxy.backend.communication.jdbc.JDBCDatabaseCommunicationEngine;
 import org.apache.shardingsphere.proxy.backend.communication.jdbc.connection.JDBCBackendConnection;
 import org.apache.shardingsphere.proxy.backend.context.ProxyContext;
+import org.apache.shardingsphere.proxy.backend.response.data.QueryResponseCell;
 import org.apache.shardingsphere.proxy.backend.response.data.QueryResponseRow;
-import org.apache.shardingsphere.proxy.backend.response.data.impl.BinaryQueryResponseCell;
-import org.apache.shardingsphere.proxy.backend.response.data.impl.TextQueryResponseCell;
+import org.apache.shardingsphere.proxy.backend.response.header.query.QueryHeader;
 import org.apache.shardingsphere.proxy.backend.response.header.query.QueryResponseHeader;
-import org.apache.shardingsphere.proxy.backend.response.header.query.impl.QueryHeader;
 import org.apache.shardingsphere.proxy.backend.response.header.update.UpdateResponseHeader;
 import org.apache.shardingsphere.proxy.backend.session.ConnectionSession;
 import org.apache.shardingsphere.proxy.backend.text.TextProtocolBackendHandler;
+import org.apache.shardingsphere.proxy.frontend.postgresql.ProxyContextRestorer;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.dml.EmptyStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.dml.InsertStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.dml.SelectStatement;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -60,18 +58,15 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
+import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
-public final class JDBCPortalTest {
-    
-    private ContextManager contextManagerBefore;
+public final class JDBCPortalTest extends ProxyContextRestorer {
     
     @Mock(answer = Answers.RETURNS_DEEP_STUBS)
     private ContextManager mockContextManager;
@@ -92,9 +87,8 @@ public final class JDBCPortalTest {
     
     @Before
     public void setup() throws SQLException {
-        contextManagerBefore = ProxyContext.getInstance().getContextManager();
-        ProxyContext.getInstance().init(mockContextManager);
-        when(ProxyContext.getInstance().getContextManager().getMetaDataContexts().getProps().getValue(ConfigurationPropertyKey.SQL_SHOW)).thenReturn(false);
+        ProxyContext.init(mockContextManager);
+        when(ProxyContext.getInstance().getContextManager().getMetaDataContexts().getMetaData().getProps().getValue(ConfigurationPropertyKey.SQL_SHOW)).thenReturn(false);
         when(backendConnection.getConnectionSession()).thenReturn(connectionSession);
         prepareJDBCPortal();
     }
@@ -121,17 +115,17 @@ public final class JDBCPortalTest {
         when(responseHeader.getQueryHeaders()).thenReturn(Collections.singletonList(queryHeader));
         when(databaseCommunicationEngine.execute()).thenReturn(responseHeader);
         when(databaseCommunicationEngine.next()).thenReturn(true, true, false);
-        when(databaseCommunicationEngine.getQueryResponseRow())
-                .thenReturn(new QueryResponseRow(Collections.singletonList(new TextQueryResponseCell(0))), new QueryResponseRow(Collections.singletonList(new TextQueryResponseCell(1))));
-        assertNull(portal.bind());
-        assertTrue(portal.describe() instanceof PostgreSQLRowDescriptionPacket);
+        when(databaseCommunicationEngine.getQueryResponseRow()).thenReturn(new QueryResponseRow(Collections.singletonList(new QueryResponseCell(Types.INTEGER, 0))),
+                new QueryResponseRow(Collections.singletonList(new QueryResponseCell(Types.INTEGER, 1))));
+        portal.bind();
+        assertThat(portal.describe(), instanceOf(PostgreSQLRowDescriptionPacket.class));
         setField(portal, "sqlStatement", mock(SelectStatement.class));
         List<PostgreSQLPacket> actualPackets = portal.execute(0);
         assertThat(actualPackets.size(), is(3));
         Iterator<PostgreSQLPacket> actualPacketsIterator = actualPackets.iterator();
-        assertTrue(actualPacketsIterator.next() instanceof PostgreSQLDataRowPacket);
-        assertTrue(actualPacketsIterator.next() instanceof PostgreSQLDataRowPacket);
-        assertTrue(actualPacketsIterator.next() instanceof PostgreSQLCommandCompletePacket);
+        assertThat(actualPacketsIterator.next(), instanceOf(PostgreSQLDataRowPacket.class));
+        assertThat(actualPacketsIterator.next(), instanceOf(PostgreSQLDataRowPacket.class));
+        assertThat(actualPacketsIterator.next(), instanceOf(PostgreSQLCommandCompletePacket.class));
     }
     
     @Test
@@ -144,18 +138,18 @@ public final class JDBCPortalTest {
         when(databaseCommunicationEngine.execute()).thenReturn(responseHeader);
         when(databaseCommunicationEngine.next()).thenReturn(true, true);
         when(databaseCommunicationEngine.getQueryResponseRow()).thenReturn(
-                new QueryResponseRow(Collections.singletonList(new BinaryQueryResponseCell(Types.INTEGER, 0))),
-                new QueryResponseRow(Collections.singletonList(new BinaryQueryResponseCell(Types.INTEGER, 1))));
+                new QueryResponseRow(Collections.singletonList(new QueryResponseCell(Types.INTEGER, 0))),
+                new QueryResponseRow(Collections.singletonList(new QueryResponseCell(Types.INTEGER, 1))));
         setField(portal, "resultFormats", Collections.singletonList(PostgreSQLValueFormat.BINARY));
-        assertNull(portal.bind());
-        assertTrue(portal.describe() instanceof PostgreSQLRowDescriptionPacket);
+        portal.bind();
+        assertThat(portal.describe(), instanceOf(PostgreSQLRowDescriptionPacket.class));
         setField(portal, "sqlStatement", mock(SelectStatement.class));
         List<PostgreSQLPacket> actualPackets = portal.execute(2);
         assertThat(actualPackets.size(), is(3));
         Iterator<PostgreSQLPacket> actualPacketsIterator = actualPackets.iterator();
-        assertTrue(actualPacketsIterator.next() instanceof PostgreSQLDataRowPacket);
-        assertTrue(actualPacketsIterator.next() instanceof PostgreSQLDataRowPacket);
-        assertTrue(actualPacketsIterator.next() instanceof PostgreSQLPortalSuspendedPacket);
+        assertThat(actualPacketsIterator.next(), instanceOf(PostgreSQLDataRowPacket.class));
+        assertThat(actualPacketsIterator.next(), instanceOf(PostgreSQLDataRowPacket.class));
+        assertThat(actualPacketsIterator.next(), instanceOf(PostgreSQLPortalSuspendedPacket.class));
     }
     
     @Test
@@ -164,11 +158,11 @@ public final class JDBCPortalTest {
         setField(portal, "textProtocolBackendHandler", null);
         when(databaseCommunicationEngine.execute()).thenReturn(mock(UpdateResponseHeader.class));
         when(databaseCommunicationEngine.next()).thenReturn(false);
-        assertNull(portal.bind());
+        portal.bind();
         assertThat(portal.describe(), is(PostgreSQLNoDataPacket.getInstance()));
         setField(portal, "sqlStatement", mock(InsertStatement.class));
         List<PostgreSQLPacket> actualPackets = portal.execute(0);
-        assertTrue(actualPackets.iterator().next() instanceof PostgreSQLCommandCompletePacket);
+        assertThat(actualPackets.iterator().next(), instanceOf(PostgreSQLCommandCompletePacket.class));
     }
     
     @Test
@@ -177,10 +171,10 @@ public final class JDBCPortalTest {
         setField(portal, "textProtocolBackendHandler", null);
         when(databaseCommunicationEngine.execute()).thenReturn(mock(UpdateResponseHeader.class));
         when(databaseCommunicationEngine.next()).thenReturn(false);
-        assertNull(portal.bind());
+        portal.bind();
         assertThat(portal.describe(), is(PostgreSQLNoDataPacket.getInstance()));
         List<PostgreSQLPacket> actualPackets = portal.execute(0);
-        assertTrue(actualPackets.iterator().next() instanceof PostgreSQLEmptyQueryResponsePacket);
+        assertThat(actualPackets.iterator().next(), instanceOf(PostgreSQLEmptyQueryResponsePacket.class));
     }
     
     @Test(expected = IllegalStateException.class)
@@ -205,10 +199,5 @@ public final class JDBCPortalTest {
         Field field = JDBCPortal.class.getDeclaredField(fieldName);
         field.setAccessible(true);
         field.set(portal, value);
-    }
-    
-    @After
-    public void tearDown() {
-        ProxyContext.getInstance().init(contextManagerBefore);
     }
 }

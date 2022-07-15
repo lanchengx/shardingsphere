@@ -27,7 +27,7 @@ import org.apache.shardingsphere.infra.binder.statement.dml.SelectStatementConte
 import org.apache.shardingsphere.infra.database.type.DatabaseType;
 import org.apache.shardingsphere.infra.database.type.dialect.OpenGaussDatabaseType;
 import org.apache.shardingsphere.infra.database.type.dialect.PostgreSQLDatabaseType;
-import org.apache.shardingsphere.infra.metadata.schema.ShardingSphereSchema;
+import org.apache.shardingsphere.infra.metadata.database.schema.decorator.model.ShardingSphereSchema;
 import org.apache.shardingsphere.sql.parser.sql.common.segment.dml.column.ColumnSegment;
 import org.apache.shardingsphere.sql.parser.sql.common.segment.generic.OwnerSegment;
 import org.apache.shardingsphere.sql.parser.sql.common.segment.generic.table.SimpleTableSegment;
@@ -89,7 +89,7 @@ public final class TablesContext {
     }
     
     private Optional<String> findDatabaseName(final SimpleTableSegment tableSegment, final DatabaseType databaseType) {
-        Optional<OwnerSegment> owner = databaseType instanceof PostgreSQLDatabaseType 
+        Optional<OwnerSegment> owner = databaseType instanceof PostgreSQLDatabaseType
                 || databaseType instanceof OpenGaussDatabaseType ? tableSegment.getOwner().flatMap(OwnerSegment::getOwner) : tableSegment.getOwner();
         return owner.map(optional -> optional.getIdentifier().getValue());
     }
@@ -296,5 +296,14 @@ public final class TablesContext {
     public Optional<String> getDatabaseName() {
         Preconditions.checkState(databaseNames.size() <= 1, "Can not support multiple different database.");
         return databaseNames.isEmpty() ? Optional.empty() : Optional.of(databaseNames.iterator().next());
+    }
+    
+    /**
+     * Get schema name.
+     *
+     * @return schema name
+     */
+    public Optional<String> getSchemaName() {
+        return schemaNames.isEmpty() ? Optional.empty() : Optional.of(schemaNames.iterator().next());
     }
 }

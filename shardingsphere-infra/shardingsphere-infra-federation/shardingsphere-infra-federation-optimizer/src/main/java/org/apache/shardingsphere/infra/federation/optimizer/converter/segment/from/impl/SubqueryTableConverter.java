@@ -23,7 +23,7 @@ import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.shardingsphere.infra.federation.optimizer.converter.segment.SQLSegmentConverter;
-import org.apache.shardingsphere.infra.federation.optimizer.converter.statement.SelectStatementConverter;
+import org.apache.shardingsphere.infra.federation.optimizer.converter.statement.select.SelectStatementConverter;
 import org.apache.shardingsphere.sql.parser.sql.common.segment.dml.expr.subquery.SubquerySegment;
 import org.apache.shardingsphere.sql.parser.sql.common.segment.generic.AliasSegment;
 import org.apache.shardingsphere.sql.parser.sql.common.segment.generic.table.SubqueryTableSegment;
@@ -57,7 +57,7 @@ public final class SubqueryTableConverter implements SQLSegmentConverter<Subquer
         SubqueryTableSegment result = new SubqueryTableSegment(new SubquerySegment(getStartIndex(sqlBasicCall), getStopIndex(sqlBasicCall), selectStatement));
         if (sqlBasicCall.getOperator().equals(SqlStdOperatorTable.AS)) {
             SqlNode alias = sqlBasicCall.getOperandList().get(1);
-            result.setAlias(new AliasSegment(getStartIndex(alias), getStopIndex(alias), new IdentifierValue(alias.toString())));   
+            result.setAlias(new AliasSegment(getStartIndex(alias), getStopIndex(alias), new IdentifierValue(alias.toString())));
         }
         return Optional.of(result);
     }

@@ -47,7 +47,7 @@ public final class OnRuleAlteredActionConfigurationYamlSwapper implements YamlCo
         result.setOutput(OUTPUT_CONFIG_SWAPPER.swapToYamlConfiguration(data.getOutput()));
         result.setStreamChannel(ALGORITHM_CONFIG_YAML_SWAPPER.swapToYamlConfiguration(data.getStreamChannel()));
         result.setCompletionDetector(ALGORITHM_CONFIG_YAML_SWAPPER.swapToYamlConfiguration(data.getCompletionDetector()));
-        result.setDataConsistencyChecker(ALGORITHM_CONFIG_YAML_SWAPPER.swapToYamlConfiguration(data.getDataConsistencyChecker()));
+        result.setDataConsistencyChecker(ALGORITHM_CONFIG_YAML_SWAPPER.swapToYamlConfiguration(data.getDataConsistencyCalculator()));
         return result;
     }
     
@@ -74,6 +74,7 @@ public final class OnRuleAlteredActionConfigurationYamlSwapper implements YamlCo
             YamlInputConfiguration result = new YamlInputConfiguration();
             result.setWorkerThread(data.getWorkerThread());
             result.setBatchSize(data.getBatchSize());
+            result.setShardingSize(data.getShardingSize());
             result.setRateLimiter(ALGORITHM_CONFIG_YAML_SWAPPER.swapToYamlConfiguration(data.getRateLimiter()));
             return result;
         }
@@ -83,7 +84,8 @@ public final class OnRuleAlteredActionConfigurationYamlSwapper implements YamlCo
             if (null == yamlConfig) {
                 return null;
             }
-            return new InputConfiguration(yamlConfig.getWorkerThread(), yamlConfig.getBatchSize(), ALGORITHM_CONFIG_YAML_SWAPPER.swapToObject(yamlConfig.getRateLimiter()));
+            return new InputConfiguration(yamlConfig.getWorkerThread(), yamlConfig.getBatchSize(), yamlConfig.getShardingSize(),
+                    ALGORITHM_CONFIG_YAML_SWAPPER.swapToObject(yamlConfig.getRateLimiter()));
         }
     }
     

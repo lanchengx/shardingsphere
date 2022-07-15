@@ -1,7 +1,7 @@
 +++
-pre = "<b>7.8. </b>"
+pre = "<b>8.7. </b>"
 title = "FAQ"
-weight = 8
+weight = 7
 chapter = true
 +++
 
@@ -40,16 +40,16 @@ META-INF\namespace\sharding.xsd 和 META-INF\namespace\replica-query.xsd，只�
 tar zxvf apache-shardingsphere-${RELEASE.VERSION}-shardingsphere-proxy-bin.tar.gz
 ```
 
-## [Proxy] 在使用 ShardingSphere-Proxy 的时候，如何动态在添加新的 logic schema？
+## [Proxy] 在使用 ShardingSphere-Proxy 的时候，如何动态在添加新的逻辑库？
 
 回答：
 
-使用 ShardingSphere-Proxy 时，可以通过 `DistSQL` 动态的创建或移除 logic schema，语法如下：
+使用 ShardingSphere-Proxy 时，可以通过 `DistSQL` 动态的创建或移除逻辑库，语法如下：
 
 ```sql
-CREATE (DATABASE | SCHEMA) [IF NOT EXISTS] schemaName;
+CREATE DATABASE  [IF NOT EXISTS] databaseName;
     
-DROP (DATABASE | SCHEMA) [IF EXISTS] schemaName;
+DROP DATABASE  [IF EXISTS] databaseName;
 ```
 
 例：
@@ -57,7 +57,7 @@ DROP (DATABASE | SCHEMA) [IF EXISTS] schemaName;
 ```sql
 CREATE DATABASE sharding_db;
 
-DROP SCHEMA sharding_db;
+DROP DATABASE sharding_db;
 ```
 
 ## [Proxy] 在使用 ShardingSphere-Proxy 时，怎么使用合适的工具连接到 ShardingSphere-Proxy？
@@ -71,12 +71,12 @@ DROP SCHEMA sharding_db;
    - DataGrip：2020.1、2021.1（使用 IDEA/DataGrip 时打开 `introspect using JDBC metadata` 选项）。
    - WorkBench：8.0.25。
 
-## [Proxy] 使用 Navicat 等第三方数据库工具连接 ShardingSphere-Proxy 时，如果 ShardingSphere-Proxy 没有创建 Schema 或者没有添加 Resource，连接失败？
+## [Proxy] 使用 Navicat 等第三方数据库工具连接 ShardingSphere-Proxy 时，如果 ShardingSphere-Proxy 没有创建 Database 或者没有添加 Resource，连接失败？
 
 回答：
 
-1. 第三方数据库工具在连接 ShardingSphere-Proxy 时会发送一些 SQL 查询元数据，当 ShardingSphere-Proxy 没有创建 `schema` 或者没有添加 `resource` 时，ShardingSphere-Proxy 无法执行 SQL。
-2. 推荐先创建 `schema` 和 `resource` 之后再使用第三方数据库工具连接。
+1. 第三方数据库工具在连接 ShardingSphere-Proxy 时会发送一些 SQL 查询元数据，当 ShardingSphere-Proxy 没有创建 `database` 或者没有添加 `resource` 时，ShardingSphere-Proxy 无法执行 SQL。
+2. 推荐先创建 `database` 和 `resource` 之后再使用第三方数据库工具连接。
 3. 有关 `resource` 的详情请参考。[相关介绍](/cn/user-manual/shardingsphere-proxy/distsql/syntax/rdl/resource-definition/)
 
 ## [分片] Cloud not resolve placeholder ... in string value ... 异常的解决方法?
@@ -386,3 +386,30 @@ Caused by: java.lang.NullPointerException: Inline sharding algorithm expression 
 	... 
 ```
 从异常堆栈中分析可知： `AbstractAlgorithmProvidedBeanRegistry.registerBean` 方法调用 `PropertyUtil.containPropertyPrefix(environment, prefix)` 方法判断指定前缀 `prefix` 的配置是否存在，而 `PropertyUtil.containPropertyPrefix(environment, prefix)` 方法，在 Spring Boot 2.x 环境下使用了 Binder，不规范的属性名称（如：驼峰或下划线等）会导致属性设置不生效。
+
+## [ShardingSphere-JDBC] Oracle 表名、字段名配置大小写在加载 `metadata` 元数据时结果不正确？
+
+回答：
+
+需要注意，Oracle 表名和字段名，默认元数据都是大写，除非建表语句中带双引号，如 `CREATE TABLE "TableName"("Id" number)` 元数据为双引号中内容，可参考以下SQL查看元数据的具体情况：
+```
+SELECT OWNER, TABLE_NAME, COLUMN_NAME, DATA_TYPE FROM ALL_TAB_COLUMNS WHERE TABLE_NAME IN ('TableName') 
+```
+
+ShardingSphere 使用 `OracleTableMetaDataLoader` 对 Oracle 元数据进行加载，配置时需确保表名、字段名的大小写配置与数据库中的一致。
+
+ShardingSphere 查询元数据关键SQL:
+```
+    private String getTableMetaDataSQL(final Collection<String> tables, final DatabaseMetaData metaData) throws SQLException {
+        StringBuilder stringBuilder = new StringBuilder(28);
+        if (versionContainsIdentityColumn(metaData)) {
+            stringBuilder.append(", IDENTITY_COLUMN");
+        }
+        if (versionContainsCollation(metaData)) {
+            stringBuilder.append(", COLLATION");
+        }
+        String collation = stringBuilder.toString();
+        return tables.isEmpty() ? String.format(TABLE_META_DATA_SQL, collation)
+                : String.format(TABLE_META_DATA_SQL_IN_TABLES, collation, tables.stream().map(each -> String.format("'%s'", each)).collect(Collectors.joining(",")));
+    }
+```

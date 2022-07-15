@@ -19,13 +19,12 @@ The following code of conduct is based on full compliance with [ASF CODE OF COND
  - Make sure the test coverage rate is not lower than the master branch.
  - Careful consideration for each `pull request`; Small and frequent `pull request` with complete unit function is welcomed.
  - Conform to `Contributor Covenant Code of Conduct` below.
- - If using IDEA，you can import the recommended [Settings](https://shardingsphere.apache.org/community/data/shardingsphere-settings.jar).
+ - If using IDEA, you can import the recommended [Settings](https://shardingsphere.apache.org/community/data/shardingsphere-settings.jar).
+ - Through the uniform code style of spotless, execute the `mvn spotless:apply` formatted code.
 
 ## Contributor Covenant Code of Conduct
 
  - Use linux line separators.
- - Keep indents (including blank lines) consistent with the previous one.
- - Keep one blank line after class definition.
  - No meaningless blank lines. Please extract private methods to instead of blank lines if too long method body or different logic code fragments.
  - Use meaningful class, method and variable names, avoid to use abbreviate. 
  - Return values are named with `result`; Variables in the loop structure are named with `each`; Replace `each` with `entry` in map.
@@ -63,6 +62,7 @@ The following code of conduct is based on full compliance with [ASF CODE OF COND
    - Design: Design with production codes.
    - Error: Error value test, test for error input, exception to get expect result.
  - Without particular reasons, test cases should be fully covered.
+ - Test cases should be fully covered expect simply `getter /setter` methods, and declared static codes of SPI, such as: `getType / getOrder`.
  - Every test case need precised assertion.
  - Environment preparation codes should be separate from test codes.
  - Only those that relate to junit `Assert`, hamcrest `CoreMatchers` and `Mockito` can use static import.
@@ -71,6 +71,7 @@ The following code of conduct is based on full compliance with [ASF CODE OF COND
  - For accurate asserts, try not to use `not`, `containsString` to make assertions.
  - Actual values of test cases should be named `actualXXX`, expected values `expectedXXX`.
  - Class for test case and `@Test` annotation do not need javadoc.
+ - Mockito mockStatic and mockConstruction methods must be used with try-with-resource or closed in the teardown method to avoid leaks.
 
 ## Contributor Covenant G4 Code of Conduct
  - Common Conduct
@@ -86,3 +87,4 @@ The following code of conduct is based on full compliance with [ASF CODE OF COND
    - If a rule's branch is over than `5`, every branch take a new line.
    - Rule name of parser should same with java variable's camel case.
    - Define separate files for every SQL type, file name should consist of `database` + `SQL type` + `Statement`. For example: `MySQLDQLStatement.g4`.
+   - Each `SQLStatement` and `SQLSegment` implementation class must add lombok `@ToString` annotation, if the implementation class inherits a parent class, you need to add `callSuper = true` parameter.

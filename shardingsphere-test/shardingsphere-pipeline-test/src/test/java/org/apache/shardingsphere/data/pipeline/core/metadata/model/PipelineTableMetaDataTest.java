@@ -20,24 +20,25 @@ package org.apache.shardingsphere.data.pipeline.core.metadata.model;
 import org.junit.Before;
 import org.junit.Test;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-
 import java.sql.Types;
 import java.util.Collections;
 
+import static org.hamcrest.CoreMatchers.is;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+
 public final class PipelineTableMetaDataTest {
-
+    
     private PipelineTableMetaData pipelineTableMetaData;
-
+    
     @Before
     public void setUp() {
-        pipelineTableMetaData = new PipelineTableMetaData("test_data", Collections.singletonMap("test", new PipelineColumnMetaData(1, "test", Types.INTEGER, "INTEGER", true)));
+        PipelineColumnMetaData column = new PipelineColumnMetaData(1, "test", Types.INTEGER, "INTEGER", true, true);
+        pipelineTableMetaData = new PipelineTableMetaData("test_data", Collections.singletonMap("test", column), Collections.emptySet());
     }
-
+    
     @Test
     public void assertGetColumnMetaDataGivenColumnIndex() {
         PipelineColumnMetaData actual = pipelineTableMetaData.getColumnMetaData(0);
@@ -46,7 +47,7 @@ public final class PipelineTableMetaDataTest {
         assertThat(actual.getDataType(), is(Types.INTEGER));
         assertTrue(actual.isPrimaryKey());
     }
-
+    
     @Test
     public void assertGetColumnMetaDataGivenColumnName() {
         PipelineColumnMetaData actual = pipelineTableMetaData.getColumnMetaData("test");
@@ -56,10 +57,10 @@ public final class PipelineTableMetaDataTest {
         assertThat(actual.getDataType(), is(Types.INTEGER));
         assertTrue(actual.isPrimaryKey());
     }
-
+    
     @Test
     public void assertIsPrimaryKey() {
-        assertTrue(pipelineTableMetaData.isPrimaryKey(0));
-        assertFalse(pipelineTableMetaData.isPrimaryKey(1));
+        assertTrue(pipelineTableMetaData.isUniqueKey(0));
+        assertFalse(pipelineTableMetaData.isUniqueKey(1));
     }
 }

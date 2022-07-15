@@ -17,17 +17,21 @@
 
 package org.apache.shardingsphere.readwritesplitting.distsql.handler.update;
 
-import org.apache.shardingsphere.infra.config.function.ResourceRequiredRuleConfiguration;
+import org.apache.shardingsphere.infra.datanode.DataNode;
 import org.apache.shardingsphere.infra.distsql.exception.rule.RequiredRuleMissedException;
 import org.apache.shardingsphere.infra.distsql.exception.rule.RuleDefinitionViolationException;
 import org.apache.shardingsphere.infra.distsql.exception.rule.RuleInUsedException;
 import org.apache.shardingsphere.infra.distsql.update.RuleDefinitionDropUpdater;
-import org.apache.shardingsphere.infra.metadata.ShardingSphereMetaData;
+import org.apache.shardingsphere.infra.metadata.database.ShardingSphereDatabase;
+import org.apache.shardingsphere.infra.rule.identifier.type.DataNodeContainedRule;
+import org.apache.shardingsphere.infra.rule.identifier.type.DataSourceContainedRule;
 import org.apache.shardingsphere.readwritesplitting.api.ReadwriteSplittingRuleConfiguration;
 import org.apache.shardingsphere.readwritesplitting.api.rule.ReadwriteSplittingDataSourceRuleConfiguration;
 import org.apache.shardingsphere.readwritesplitting.distsql.parser.statement.DropReadwriteSplittingRuleStatement;
+import org.apache.shardingsphere.readwritesplitting.rule.ReadwriteSplittingRule;
 
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -38,43 +42,59 @@ import java.util.stream.Collectors;
 public final class DropReadwriteSplittingRuleStatementUpdater implements RuleDefinitionDropUpdater<DropReadwriteSplittingRuleStatement, ReadwriteSplittingRuleConfiguration> {
     
     @Override
-    public void checkSQLStatement(final ShardingSphereMetaData shardingSphereMetaData, final DropReadwriteSplittingRuleStatement sqlStatement,
+    public void checkSQLStatement(final ShardingSphereDatabase database, final DropReadwriteSplittingRuleStatement sqlStatement,
                                   final ReadwriteSplittingRuleConfiguration currentRuleConfig) throws RuleDefinitionViolationException {
-        String schemaName = shardingSphereMetaData.getName();
-        if (!isExistRuleConfig(currentRuleConfig) && sqlStatement.isContainsExistClause()) {
+        if (!isExistRuleConfig(currentRuleConfig) && sqlStatement.isIfExists()) {
             return;
         }
-        checkCurrentRuleConfiguration(schemaName, currentRuleConfig);
-        checkToBeDroppedRuleNames(schemaName, sqlStatement, currentRuleConfig);
-        checkToBeDroppedInUsed(schemaName, sqlStatement, shardingSphereMetaData);
+        String databaseName = database.getName();
+        checkCurrentRuleConfiguration(databaseName, currentRuleConfig);
+        checkToBeDroppedRuleNames(databaseName, sqlStatement, currentRuleConfig);
+        checkToBeDroppedInUsed(database, sqlStatement);
     }
     
-    private void checkCurrentRuleConfiguration(final String schemaName, final ReadwriteSplittingRuleConfiguration currentRuleConfig) throws RequiredRuleMissedException {
+    private void checkCurrentRuleConfiguration(final String databaseName, final ReadwriteSplittingRuleConfiguration currentRuleConfig) throws RequiredRuleMissedException {
         if (null == currentRuleConfig) {
-            throw new RequiredRuleMissedException("Readwrite splitting", schemaName);
+            throw new RequiredRuleMissedException("Readwrite splitting", databaseName);
         }
     }
     
-    private void checkToBeDroppedRuleNames(final String schemaName, final DropReadwriteSplittingRuleStatement sqlStatement,
+    private void checkToBeDroppedRuleNames(final String databaseName, final DropReadwriteSplittingRuleStatement sqlStatement,
                                            final ReadwriteSplittingRuleConfiguration currentRuleConfig) throws RequiredRuleMissedException {
-        if (sqlStatement.isContainsExistClause()) {
+        if (sqlStatement.isIfExists()) {
             return;
         }
         Collection<String> currentRuleNames = currentRuleConfig.getDataSources().stream().map(ReadwriteSplittingDataSourceRuleConfiguration::getName).collect(Collectors.toList());
         Collection<String> notExistedRuleNames = sqlStatement.getRuleNames().stream().filter(each -> !currentRuleNames.contains(each)).collect(Collectors.toList());
         if (!notExistedRuleNames.isEmpty()) {
-            throw new RequiredRuleMissedException("Readwrite splitting", schemaName, sqlStatement.getRuleNames());
+            throw new RequiredRuleMissedException("Readwrite splitting", databaseName, sqlStatement.getRuleNames());
         }
     }
     
-    private void checkToBeDroppedInUsed(final String schemaName, final DropReadwriteSplittingRuleStatement sqlStatement, 
-                                        final ShardingSphereMetaData shardingSphereMetaData) throws RuleInUsedException {
-        Collection<String> resourceBeUsed = shardingSphereMetaData.getRuleMetaData().findRuleConfiguration(ResourceRequiredRuleConfiguration.class).stream()
-                .map(ResourceRequiredRuleConfiguration::getRequiredResource).flatMap(Collection::stream).collect(Collectors.toSet());
+    private void checkToBeDroppedInUsed(final ShardingSphereDatabase database, final DropReadwriteSplittingRuleStatement sqlStatement) throws RuleInUsedException {
+        Collection<String> resourceBeUsed = getInUsedResources(database);
         Collection<String> ruleInUsed = sqlStatement.getRuleNames().stream().filter(resourceBeUsed::contains).collect(Collectors.toSet());
         if (!ruleInUsed.isEmpty()) {
-            throw new RuleInUsedException("Readwrite splitting", schemaName, ruleInUsed);
+            throw new RuleInUsedException("Readwrite splitting", database.getName(), ruleInUsed);
         }
+    }
+    
+    private Collection<String> getInUsedResources(final ShardingSphereDatabase database) {
+        Collection<String> result = new HashSet<>();
+        for (DataSourceContainedRule each : database.getRuleMetaData().findRules(DataSourceContainedRule.class)) {
+            if (each instanceof ReadwriteSplittingRule) {
+                continue;
+            }
+            Collection<String> actualDataSources = new HashSet<>();
+            each.getDataSourceMapper().values().forEach(actualDataSources::addAll);
+            result.addAll(actualDataSources);
+        }
+        for (DataNodeContainedRule each : database.getRuleMetaData().findRules(DataNodeContainedRule.class)) {
+            Collection<DataNode> actualDataNodes = new HashSet<>();
+            each.getAllDataNodes().values().forEach(actualDataNodes::addAll);
+            result.addAll(actualDataNodes.stream().map(DataNode::getDataSourceName).collect(Collectors.toSet()));
+        }
+        return result;
     }
     
     @Override
@@ -86,12 +106,11 @@ public final class DropReadwriteSplittingRuleStatementUpdater implements RuleDef
     }
     
     private void dropRule(final ReadwriteSplittingRuleConfiguration currentRuleConfig, final String ruleName) {
-        Optional<ReadwriteSplittingDataSourceRuleConfiguration> dataSourceRuleConfig
-                = currentRuleConfig.getDataSources().stream().filter(dataSource -> ruleName.equals(dataSource.getName())).findAny();
-        dataSourceRuleConfig.ifPresent(op -> {
-            currentRuleConfig.getDataSources().remove(op);
-            if (isLoadBalancerNotInUse(currentRuleConfig, op.getLoadBalancerName())) {
-                currentRuleConfig.getLoadBalancers().remove(op.getLoadBalancerName());
+        Optional<ReadwriteSplittingDataSourceRuleConfiguration> dataSourceRuleConfig = currentRuleConfig.getDataSources().stream().filter(each -> ruleName.equals(each.getName())).findAny();
+        dataSourceRuleConfig.ifPresent(optional -> {
+            currentRuleConfig.getDataSources().remove(optional);
+            if (null != optional.getLoadBalancerName() && isLoadBalancerNotInUse(currentRuleConfig, optional.getLoadBalancerName())) {
+                currentRuleConfig.getLoadBalancers().remove(optional.getLoadBalancerName());
             }
         });
     }
@@ -103,8 +122,8 @@ public final class DropReadwriteSplittingRuleStatementUpdater implements RuleDef
     
     @Override
     public boolean hasAnyOneToBeDropped(final DropReadwriteSplittingRuleStatement sqlStatement, final ReadwriteSplittingRuleConfiguration currentRuleConfig) {
-        return null != currentRuleConfig
-                && !getIdenticalData(currentRuleConfig.getDataSources().stream().map(each -> each.getName()).collect(Collectors.toSet()), sqlStatement.getRuleNames()).isEmpty();
+        return null != currentRuleConfig && !getIdenticalData(currentRuleConfig.getDataSources().stream()
+                .map(ReadwriteSplittingDataSourceRuleConfiguration::getName).collect(Collectors.toSet()), sqlStatement.getRuleNames()).isEmpty();
     }
     
     @Override

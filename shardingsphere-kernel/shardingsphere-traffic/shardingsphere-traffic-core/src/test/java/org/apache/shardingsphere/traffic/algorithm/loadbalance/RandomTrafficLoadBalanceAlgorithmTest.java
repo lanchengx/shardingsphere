@@ -17,36 +17,23 @@
 
 package org.apache.shardingsphere.traffic.algorithm.loadbalance;
 
-import org.apache.shardingsphere.infra.instance.definition.InstanceId;
+import org.apache.shardingsphere.infra.instance.metadata.InstanceMetaData;
+import org.apache.shardingsphere.infra.instance.metadata.proxy.ProxyInstanceMetaData;
 import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.List;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 public final class RandomTrafficLoadBalanceAlgorithmTest {
     
-    private final RandomTrafficLoadBalanceAlgorithm randomAlgorithm = new RandomTrafficLoadBalanceAlgorithm();
-    
     @Test
     public void assertGetInstanceId() {
-        List<InstanceId> instanceIds = Arrays.asList(new InstanceId("127.0.0.1@3307"), new InstanceId("127.0.0.1@3308"));
-        assertTrue(instanceIds.contains(randomAlgorithm.getInstanceId("simple_traffic", instanceIds)));
-        assertTrue(instanceIds.contains(randomAlgorithm.getInstanceId("simple_traffic", instanceIds)));
-        assertTrue(instanceIds.contains(randomAlgorithm.getInstanceId("simple_traffic", instanceIds)));
-    }
-    
-    @Test
-    public void assertGetType() {
-        assertThat(randomAlgorithm.getType(), is("RANDOM"));
-    }
-    
-    @Test
-    public void assertIsDefault() {
-        assertFalse(randomAlgorithm.isDefault());
+        RandomTrafficLoadBalanceAlgorithm randomAlgorithm = new RandomTrafficLoadBalanceAlgorithm();
+        List<InstanceMetaData> instances = Arrays.asList(new ProxyInstanceMetaData("foo_id", "127.0.0.1@3307"), new ProxyInstanceMetaData("bar_id", "127.0.0.1@3308"));
+        assertTrue(instances.contains(randomAlgorithm.getInstanceId("simple_traffic", instances)));
+        assertTrue(instances.contains(randomAlgorithm.getInstanceId("simple_traffic", instances)));
+        assertTrue(instances.contains(randomAlgorithm.getInstanceId("simple_traffic", instances)));
     }
 }

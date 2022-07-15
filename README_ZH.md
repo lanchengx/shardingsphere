@@ -78,13 +78,13 @@ ShardingSphere 已于 2020 年 4 月 16 日成为 [Apache 软件基金会](https
 
 <hr>
 
-:white_check_mark: Version 5.1.0: 已发布 :tada:
+:white_check_mark: Version 5.1.2: 已发布 :tada:
 
 🔗 请访问 [发布说明](https://github.com/apache/shardingsphere/blob/master/RELEASE-NOTES.md) 获得更详细的信息.
 
-:soon: Version 5.1.1
+:soon: Version 5.1.3
 
-我们目前正在开发 5.1.1 里程碑。
+我们目前正在开发 5.1.3 里程碑。
 请访问[里程碑](https://github.com/apache/shardingsphere/milestones) 获取最新信息。
 
 ##
@@ -100,7 +100,7 @@ Apache ShardingSphere 由 JDBC、Proxy 和 Sidecar（规划中）这 3 款既能
 
 <hr>
 
-[![Maven Status](https://maven-badges.herokuapp.com/maven-central/org.apache.shardingsphere/shardingsphere-jdbc/badge.svg)](https://mvnrepository.com/artifact/org.apache.shardingsphere/shardingsphere-jdbc)
+[![Maven Status](https://img.shields.io/maven-central/v/org.apache.shardingsphere/shardingsphere-jdbc.svg?color=green)](https://mvnrepository.com/artifact/org.apache.shardingsphere/shardingsphere-jdbc)
 
 定位为轻量级 Java 框架，在 Java 的 JDBC 层提供的额外服务。
 它使用客户端直连数据库，以 jar 包形式提供服务，无需额外部署和依赖，可理解为增强版的 JDBC 驱动，完全兼容 JDBC 和各种 ORM 框架。
@@ -111,7 +111,8 @@ Apache ShardingSphere 由 JDBC、Proxy 和 Sidecar（规划中）这 3 款既能
 
 <hr>
 
-[![Download](https://img.shields.io/badge/release-download-orange.svg)](https://apache.org/dyn/closer.cgi?path=shardingsphere/5.1.0/apache-shardingsphere-5.1.0-shardingsphere-proxy-bin.tar.gz)
+[![Nightly-Download](https://img.shields.io/static/v1?label=nightly-builds&message=download&color=orange)](https://nightlies.apache.org/shardingsphere/)
+[![Download](https://img.shields.io/badge/release-download-orange.svg)](https://www.apache.org/dyn/closer.lua/shardingsphere/5.1.2/apache-shardingsphere-5.1.2-shardingsphere-proxy-bin.tar.gz)
 [![Docker Pulls](https://img.shields.io/docker/pulls/apache/shardingsphere-proxy.svg)](https://store.docker.com/community/images/apache/shardingsphere-proxy)
 
 定位为透明化的数据库代理端，提供封装了数据库二进制协议的服务端版本，用于完成对异构语言的支持。
@@ -180,7 +181,7 @@ Apache ShardingSphere 是多接入端共同组成的生态圈。
 <br/><br/>
 <img src="https://landscape.cncf.io/images/left-logo.svg" width="150"/>&nbsp;&nbsp;<img src="https://landscape.cncf.io/images/right-logo.svg" width="200"/>
 <br/><br/>
-ShardingSphere 进入了<a href="https://landscape.cncf.io/landscape=observability-and-analysis&license=apache-license-2-0">CNCF 云原生全景图</a>。
+ShardingSphere 进入了<a href="https://landscape.cncf.io/?category=app-definition-and-development&grouping=category">CNCF 云原生全景图</a>。
 </p>
 
 ##

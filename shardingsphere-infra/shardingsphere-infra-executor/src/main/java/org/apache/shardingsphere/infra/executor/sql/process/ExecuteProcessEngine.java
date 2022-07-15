@@ -22,14 +22,15 @@ import lombok.NoArgsConstructor;
 import org.apache.shardingsphere.infra.binder.LogicSQL;
 import org.apache.shardingsphere.infra.binder.statement.SQLStatementContext;
 import org.apache.shardingsphere.infra.config.props.ConfigurationProperties;
+import org.apache.shardingsphere.infra.eventbus.EventBusContext;
 import org.apache.shardingsphere.infra.executor.kernel.model.ExecutionGroupContext;
 import org.apache.shardingsphere.infra.executor.kernel.model.ExecutorDataMap;
 import org.apache.shardingsphere.infra.executor.sql.execute.engine.SQLExecutionUnit;
 import org.apache.shardingsphere.infra.executor.sql.process.model.ExecuteProcessConstants;
 import org.apache.shardingsphere.infra.executor.sql.process.spi.ExecuteProcessReporter;
-import org.apache.shardingsphere.spi.ShardingSphereServiceLoader;
+import org.apache.shardingsphere.infra.executor.sql.process.spi.ExecuteProcessReporterFactory;
 
-import java.util.Collection;
+import java.util.Optional;
 
 /**
  * Execute process engine.
@@ -37,25 +38,21 @@ import java.util.Collection;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class ExecuteProcessEngine {
     
-    private static final Collection<ExecuteProcessReporter> HANDLERS;
-    
-    static {
-        ShardingSphereServiceLoader.register(ExecuteProcessReporter.class);
-        HANDLERS = ShardingSphereServiceLoader.newServiceInstances(ExecuteProcessReporter.class);
-    }
-    
     /**
      * Initialize.
      *
      * @param logicSQL logic SQL
      * @param executionGroupContext execution group context
      * @param props configuration properties
+     * @param eventBusContext event bus context             
      */
-    public static void initialize(final LogicSQL logicSQL, final ExecutionGroupContext<? extends SQLExecutionUnit> executionGroupContext, final ConfigurationProperties props) {
+    public static void initialize(final LogicSQL logicSQL, final ExecutionGroupContext<? extends SQLExecutionUnit> executionGroupContext, final ConfigurationProperties props,
+                                  final EventBusContext eventBusContext) {
         SQLStatementContext<?> context = logicSQL.getSqlStatementContext();
-        if (!HANDLERS.isEmpty() && ExecuteProcessStrategyEvaluator.evaluate(context, executionGroupContext, props)) {
+        Optional<ExecuteProcessReporter> reporter = ExecuteProcessReporterFactory.getInstance();
+        if (reporter.isPresent() && ExecuteProcessStrategyEvaluator.evaluate(context, executionGroupContext, props)) {
             ExecutorDataMap.getValue().put(ExecuteProcessConstants.EXECUTE_ID.name(), executionGroupContext.getExecutionID());
-            HANDLERS.iterator().next().report(logicSQL, executionGroupContext, ExecuteProcessConstants.EXECUTE_STATUS_START);
+            reporter.get().report(logicSQL, executionGroupContext, ExecuteProcessConstants.EXECUTE_STATUS_START, eventBusContext);
         }
     }
     
@@ -63,6 +60,10 @@ public final class ExecuteProcessEngine {
      * Clean.
      */
     public static void clean() {
+        Optional<ExecuteProcessReporter> reporter = ExecuteProcessReporterFactory.getInstance();
+        if (reporter.isPresent() && ExecutorDataMap.getValue().containsKey(ExecuteProcessConstants.EXECUTE_ID.name())) {
+            reporter.get().reportClean(ExecutorDataMap.getValue().get(ExecuteProcessConstants.EXECUTE_ID.name()).toString());
+        }
         ExecutorDataMap.getValue().remove(ExecuteProcessConstants.EXECUTE_ID.name());
     }
     
@@ -71,21 +72,23 @@ public final class ExecuteProcessEngine {
      *
      * @param executionID execution ID
      * @param executionUnit execution unit
+     * @param eventBusContext event bus context                      
      */
-    public static void finish(final String executionID, final SQLExecutionUnit executionUnit) {
-        if (!HANDLERS.isEmpty()) {
-            HANDLERS.iterator().next().report(executionID, executionUnit, ExecuteProcessConstants.EXECUTE_STATUS_DONE);
-        }
+    public static void finish(final String executionID, final SQLExecutionUnit executionUnit, final EventBusContext eventBusContext) {
+        Optional<ExecuteProcessReporter> reporter = ExecuteProcessReporterFactory.getInstance();
+        reporter.ifPresent(optional -> optional.report(executionID, executionUnit, ExecuteProcessConstants.EXECUTE_STATUS_DONE, eventBusContext));
     }
     
     /**
      * Finish.
      *
      * @param executionID execution ID
+     * @param eventBusContext event bus context                    
      */
-    public static void finish(final String executionID) {
-        if (!HANDLERS.isEmpty() && ExecutorDataMap.getValue().containsKey(ExecuteProcessConstants.EXECUTE_ID.name())) {
-            HANDLERS.iterator().next().report(executionID, ExecuteProcessConstants.EXECUTE_STATUS_DONE);
+    public static void finish(final String executionID, final EventBusContext eventBusContext) {
+        Optional<ExecuteProcessReporter> reporter = ExecuteProcessReporterFactory.getInstance();
+        if (reporter.isPresent() && ExecutorDataMap.getValue().containsKey(ExecuteProcessConstants.EXECUTE_ID.name())) {
+            reporter.get().report(executionID, ExecuteProcessConstants.EXECUTE_STATUS_DONE, eventBusContext);
         }
     }
 }

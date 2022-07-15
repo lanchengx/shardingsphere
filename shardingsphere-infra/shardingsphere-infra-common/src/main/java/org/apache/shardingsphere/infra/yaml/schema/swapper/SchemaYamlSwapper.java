@@ -17,8 +17,8 @@
 
 package org.apache.shardingsphere.infra.yaml.schema.swapper;
 
-import org.apache.shardingsphere.infra.metadata.schema.ShardingSphereSchema;
-import org.apache.shardingsphere.infra.metadata.schema.model.TableMetaData;
+import org.apache.shardingsphere.infra.metadata.database.schema.decorator.model.ShardingSphereSchema;
+import org.apache.shardingsphere.infra.metadata.database.schema.decorator.model.ShardingSphereTable;
 import org.apache.shardingsphere.infra.yaml.config.swapper.YamlConfigurationSwapper;
 import org.apache.shardingsphere.infra.yaml.schema.pojo.YamlSchema;
 import org.apache.shardingsphere.infra.yaml.schema.pojo.YamlTableMetaData;
@@ -37,8 +37,7 @@ public final class SchemaYamlSwapper implements YamlConfigurationSwapper<YamlSch
     @Override
     public YamlSchema swapToYamlConfiguration(final ShardingSphereSchema schema) {
         Map<String, YamlTableMetaData> tables = schema.getAllTableNames().stream()
-                .collect(Collectors.<String, String, YamlTableMetaData, Map<String, YamlTableMetaData>>toMap(
-                    each -> each, each -> swapYamlTable(schema.get(each)), (oldValue, currentValue) -> oldValue, LinkedHashMap::new));
+                .collect(Collectors.toMap(each -> each, each -> swapYamlTable(schema.get(each)), (oldValue, currentValue) -> oldValue, LinkedHashMap::new));
         YamlSchema result = new YamlSchema();
         result.setTables(tables);
         return result;
@@ -54,11 +53,11 @@ public final class SchemaYamlSwapper implements YamlConfigurationSwapper<YamlSch
                 : schema.getTables().entrySet().stream().collect(Collectors.toMap(Entry::getKey, entry -> swapTable(entry.getValue()), (oldValue, currentValue) -> oldValue, LinkedHashMap::new)));
     }
     
-    private TableMetaData swapTable(final YamlTableMetaData table) {
+    private ShardingSphereTable swapTable(final YamlTableMetaData table) {
         return new TableMetaDataYamlSwapper().swapToObject(table);
     }
     
-    private YamlTableMetaData swapYamlTable(final TableMetaData table) {
+    private YamlTableMetaData swapYamlTable(final ShardingSphereTable table) {
         return new TableMetaDataYamlSwapper().swapToYamlConfiguration(table);
     }
 }

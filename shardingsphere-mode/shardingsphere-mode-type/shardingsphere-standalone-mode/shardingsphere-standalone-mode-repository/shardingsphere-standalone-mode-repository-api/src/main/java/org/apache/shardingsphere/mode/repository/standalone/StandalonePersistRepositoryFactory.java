@@ -21,8 +21,8 @@ import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.apache.shardingsphere.infra.config.mode.PersistRepositoryConfiguration;
 import org.apache.shardingsphere.spi.ShardingSphereServiceLoader;
-import org.apache.shardingsphere.spi.required.RequiredSPIRegistry;
-import org.apache.shardingsphere.spi.typed.TypedSPIRegistry;
+import org.apache.shardingsphere.spi.type.required.RequiredSPIRegistry;
+import org.apache.shardingsphere.spi.type.typed.TypedSPIRegistry;
 
 /**
  * Standalone persist repository factory.
@@ -35,12 +35,12 @@ public final class StandalonePersistRepositoryFactory {
     }
     
     /**
-     * Create new instance of standalone persist repository.
+     * Get instance of standalone persist repository.
      * 
      * @param config persist repository configuration
-     * @return new instance of standalone persist repository
+     * @return got instance
      */
-    public static StandalonePersistRepository newInstance(final PersistRepositoryConfiguration config) {
+    public static StandalonePersistRepository getInstance(final PersistRepositoryConfiguration config) {
         return null == config ? RequiredSPIRegistry.getRegisteredService(StandalonePersistRepository.class)
                 : TypedSPIRegistry.getRegisteredService(StandalonePersistRepository.class, config.getType(), config.getProps());
     }

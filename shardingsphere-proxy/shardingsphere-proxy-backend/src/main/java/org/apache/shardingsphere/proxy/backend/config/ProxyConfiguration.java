@@ -19,7 +19,7 @@ package org.apache.shardingsphere.proxy.backend.config;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import org.apache.shardingsphere.infra.config.schema.impl.DataSourceGeneratedSchemaConfiguration;
+import org.apache.shardingsphere.infra.config.database.DatabaseConfiguration;
 
 import java.util.Map;
 
@@ -30,7 +30,7 @@ import java.util.Map;
 @Getter
 public final class ProxyConfiguration {
     
-    private final Map<String, DataSourceGeneratedSchemaConfiguration> schemaConfigurations;
+    private final Map<String, DatabaseConfiguration> databaseConfigurations;
     
     private final ProxyGlobalConfiguration globalConfiguration;
 }

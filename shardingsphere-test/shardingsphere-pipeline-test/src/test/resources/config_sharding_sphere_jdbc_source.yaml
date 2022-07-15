@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-schemaName: logic_db
+databaseName: logic_db
 
 dataSources:
   ds_0:
@@ -49,12 +49,16 @@ rules:
       type: INLINE
       props:
         algorithm-expression: t_order
+  keyGenerators:
+    snowflake:
+      type: SNOWFLAKE
   scalingName: default_scaling
   scaling:
     default_scaling:
       input:
         workerThread: 40
         batchSize: 1000
+        shardingSize: 10
       output:
         workerThread: 40
         batchSize: 1000
@@ -62,7 +66,7 @@ rules:
         type: MEMORY
         props:
           block-queue-size: 10000
-      completionDetector:
-        type: FIXTURE
+#      completionDetector:
+#        type: FIXTURE
       dataConsistencyChecker:
         type: FIXTURE

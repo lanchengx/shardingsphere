@@ -17,15 +17,16 @@
 
 package org.apache.shardingsphere.authority.rule;
 
+import lombok.Getter;
 import org.apache.shardingsphere.authority.config.AuthorityRuleConfiguration;
+import org.apache.shardingsphere.authority.factory.AuthorityProviderAlgorithmFactory;
+import org.apache.shardingsphere.authority.model.AuthorityRegistry;
 import org.apache.shardingsphere.authority.model.ShardingSpherePrivileges;
-import org.apache.shardingsphere.authority.spi.AuthorityProvideAlgorithm;
-import org.apache.shardingsphere.infra.config.algorithm.ShardingSphereAlgorithmFactory;
-import org.apache.shardingsphere.infra.metadata.ShardingSphereMetaData;
+import org.apache.shardingsphere.authority.spi.AuthorityProviderAlgorithm;
+import org.apache.shardingsphere.infra.metadata.database.ShardingSphereDatabase;
 import org.apache.shardingsphere.infra.metadata.user.Grantee;
 import org.apache.shardingsphere.infra.metadata.user.ShardingSphereUser;
 import org.apache.shardingsphere.infra.rule.identifier.scope.GlobalRule;
-import org.apache.shardingsphere.spi.ShardingSphereServiceLoader;
 
 import java.util.Collection;
 import java.util.Map;
@@ -36,18 +37,29 @@ import java.util.Optional;
  */
 public final class AuthorityRule implements GlobalRule {
     
-    static {
-        ShardingSphereServiceLoader.register(AuthorityProvideAlgorithm.class);
-    }
-    
-    private final AuthorityProvideAlgorithm provider;
+    @Getter
+    private final AuthorityRuleConfiguration configuration;
     
     private final Collection<ShardingSphereUser> users;
     
-    public AuthorityRule(final AuthorityRuleConfiguration config, final Map<String, ShardingSphereMetaData> metaDataMap) {
-        provider = ShardingSphereAlgorithmFactory.createAlgorithm(config.getProvider(), AuthorityProvideAlgorithm.class);
-        provider.init(metaDataMap, config.getUsers());
-        users = config.getUsers();
+    private final AuthorityProviderAlgorithm provider;
+    
+    private volatile AuthorityRegistry authorityRegistry;
+    
+    public AuthorityRule(final AuthorityRuleConfiguration ruleConfig, final Map<String, ShardingSphereDatabase> databases) {
+        configuration = ruleConfig;
+        users = ruleConfig.getUsers();
+        provider = AuthorityProviderAlgorithmFactory.newInstance(ruleConfig.getProvider());
+        authorityRegistry = provider.buildAuthorityRegistry(databases, ruleConfig.getUsers());
+    }
+    
+    /**
+     * Find user.
+     * @param grantee grantee user
+     * @return user
+     */
+    public Optional<ShardingSphereUser> findUser(final Grantee grantee) {
+        return users.stream().filter(each -> each.getGrantee().equals(grantee)).findFirst();
     }
     
     /**
@@ -57,26 +69,17 @@ public final class AuthorityRule implements GlobalRule {
      * @return found privileges
      */
     public Optional<ShardingSpherePrivileges> findPrivileges(final Grantee grantee) {
-        return provider.findPrivileges(grantee);
+        return authorityRegistry.findPrivileges(grantee);
     }
     
     /**
      * Refresh authority.
      *
-     * @param metaDataMap meta data map
+     * @param databases databases
      * @param users users
      */
-    public void refresh(final Map<String, ShardingSphereMetaData> metaDataMap, final Collection<ShardingSphereUser> users) {
-        provider.refresh(metaDataMap, users);
-    }
-
-    /**
-     * Find user.
-     * @param grantee grantee user
-     * @return user
-     */
-    public Optional<ShardingSphereUser> findUser(final Grantee grantee) {
-        return users.stream().filter(user -> user.getGrantee().equals(grantee)).findFirst();
+    public synchronized void refresh(final Map<String, ShardingSphereDatabase> databases, final Collection<ShardingSphereUser> users) {
+        authorityRegistry = provider.buildAuthorityRegistry(databases, users);
     }
     
     @Override

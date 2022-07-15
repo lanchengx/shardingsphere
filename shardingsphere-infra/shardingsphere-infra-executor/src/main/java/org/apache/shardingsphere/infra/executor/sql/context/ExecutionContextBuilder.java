@@ -21,7 +21,7 @@ import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.apache.shardingsphere.infra.binder.segment.table.TablesContext;
 import org.apache.shardingsphere.infra.binder.statement.SQLStatementContext;
-import org.apache.shardingsphere.infra.metadata.ShardingSphereMetaData;
+import org.apache.shardingsphere.infra.metadata.database.ShardingSphereDatabase;
 import org.apache.shardingsphere.infra.rewrite.engine.result.GenericSQLRewriteResult;
 import org.apache.shardingsphere.infra.rewrite.engine.result.RouteSQLRewriteResult;
 import org.apache.shardingsphere.infra.rewrite.engine.result.SQLRewriteResult;
@@ -46,22 +46,24 @@ public final class ExecutionContextBuilder {
     /**
      * Build execution contexts.
      * 
-     * @param metaData meta data
+     * @param database database
      * @param sqlRewriteResult SQL rewrite result
      * @param sqlStatementContext SQL statement context
      * @return execution contexts
      */
-    public static Collection<ExecutionUnit> build(final ShardingSphereMetaData metaData, final SQLRewriteResult sqlRewriteResult, final SQLStatementContext<?> sqlStatementContext) {
+    public static Collection<ExecutionUnit> build(final ShardingSphereDatabase database, final SQLRewriteResult sqlRewriteResult, final SQLStatementContext<?> sqlStatementContext) {
         return sqlRewriteResult instanceof GenericSQLRewriteResult
-                ? build(metaData, (GenericSQLRewriteResult) sqlRewriteResult, sqlStatementContext) : build((RouteSQLRewriteResult) sqlRewriteResult);
+                ? build(database, (GenericSQLRewriteResult) sqlRewriteResult, sqlStatementContext)
+                : build((RouteSQLRewriteResult) sqlRewriteResult);
     }
     
-    private static Collection<ExecutionUnit> build(final ShardingSphereMetaData metaData, final GenericSQLRewriteResult sqlRewriteResult, final SQLStatementContext<?> sqlStatementContext) {
-        Collection<String> instanceDataSourceNames = metaData.getResource().getDataSourcesMetaData().getAllInstanceDataSourceNames();
+    private static Collection<ExecutionUnit> build(final ShardingSphereDatabase database,
+                                                   final GenericSQLRewriteResult sqlRewriteResult, final SQLStatementContext<?> sqlStatementContext) {
+        Collection<String> instanceDataSourceNames = database.getResource().getAllInstanceDataSourceNames();
         if (instanceDataSourceNames.isEmpty()) {
             return Collections.emptyList();
         }
-        return Collections.singletonList(new ExecutionUnit(instanceDataSourceNames.iterator().next(), 
+        return Collections.singletonList(new ExecutionUnit(instanceDataSourceNames.iterator().next(),
                 new SQLUnit(sqlRewriteResult.getSqlRewriteUnit().getSql(), sqlRewriteResult.getSqlRewriteUnit().getParameters(), getGenericTableRouteMappers(sqlStatementContext))));
     }
     
@@ -90,6 +92,6 @@ public final class ExecutionContextBuilder {
         if (null != sqlStatementContext) {
             tablesContext = sqlStatementContext.getTablesContext();
         }
-        return null == tablesContext ? Collections.emptyList() : tablesContext.getTableNames().stream().map(tableName -> new RouteMapper(tableName, tableName)).collect(Collectors.toList());
+        return null == tablesContext ? Collections.emptyList() : tablesContext.getTableNames().stream().map(each -> new RouteMapper(each, each)).collect(Collectors.toList());
     }
 }

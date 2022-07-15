@@ -21,16 +21,18 @@ import com.google.common.base.Splitter;
 import org.apache.shardingsphere.infra.distsql.exception.rule.RequiredRuleMissedException;
 import org.apache.shardingsphere.infra.distsql.exception.rule.RuleDefinitionViolationException;
 import org.apache.shardingsphere.infra.distsql.exception.rule.RuleInUsedException;
-import org.apache.shardingsphere.infra.metadata.ShardingSphereMetaData;
+import org.apache.shardingsphere.infra.metadata.database.ShardingSphereDatabase;
 import org.apache.shardingsphere.sharding.api.config.ShardingRuleConfiguration;
 import org.apache.shardingsphere.sharding.api.config.rule.ShardingAutoTableRuleConfiguration;
 import org.apache.shardingsphere.sharding.api.config.rule.ShardingTableRuleConfiguration;
+import org.apache.shardingsphere.sharding.api.config.strategy.sharding.StandardShardingStrategyConfiguration;
 import org.apache.shardingsphere.sharding.distsql.handler.update.DropShardingTableRuleStatementUpdater;
 import org.apache.shardingsphere.sharding.distsql.parser.statement.DropShardingTableRuleStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.segment.generic.table.TableNameSegment;
 import org.apache.shardingsphere.sql.parser.sql.common.value.identifier.IdentifierValue;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Answers;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
@@ -40,45 +42,66 @@ import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.stream.Collectors;
 
+import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 @RunWith(MockitoJUnitRunner.class)
 public final class DropShardingTableRuleStatementUpdaterTest {
     
-    @Mock
-    private ShardingSphereMetaData shardingSphereMetaData;
+    @Mock(answer = Answers.RETURNS_DEEP_STUBS)
+    private ShardingSphereDatabase database;
     
     private final DropShardingTableRuleStatementUpdater updater = new DropShardingTableRuleStatementUpdater();
     
     @Test(expected = RequiredRuleMissedException.class)
     public void assertCheckSQLStatementWithoutCurrentRule() throws RuleDefinitionViolationException {
-        updater.checkSQLStatement(shardingSphereMetaData, new DropShardingTableRuleStatement(Collections.emptyList()), null);
+        updater.checkSQLStatement(database, new DropShardingTableRuleStatement(Collections.emptyList()), null);
     }
     
     @Test(expected = RequiredRuleMissedException.class)
     public void assertCheckSQLStatementWithoutExistedTableRule() throws RuleDefinitionViolationException {
-        updater.checkSQLStatement(shardingSphereMetaData, createSQLStatement("t_order"), new ShardingRuleConfiguration());
+        updater.checkSQLStatement(database, createSQLStatement("t_order"), new ShardingRuleConfiguration());
     }
     
     @Test
     public void assertCheckSQLStatementWithIfExists() throws RuleDefinitionViolationException {
         DropShardingTableRuleStatement statement = new DropShardingTableRuleStatement(true, Collections.singleton(new TableNameSegment(0, 3, new IdentifierValue("t_order_if_exists"))));
-        updater.checkSQLStatement(shardingSphereMetaData, statement, null);
-        updater.checkSQLStatement(shardingSphereMetaData, statement, new ShardingRuleConfiguration());
+        updater.checkSQLStatement(database, statement, null);
+        updater.checkSQLStatement(database, statement, new ShardingRuleConfiguration());
     }
     
     @Test(expected = RuleInUsedException.class)
     public void assertCheckSQLStatementWithBindingTableRule() throws RuleDefinitionViolationException {
-        updater.checkSQLStatement(shardingSphereMetaData, createSQLStatement("t_order_item"), createCurrentRuleConfiguration());
+        updater.checkSQLStatement(database, createSQLStatement("t_order_item"), createCurrentRuleConfiguration());
     }
     
     @Test
-    public void assertUpdateCurrentRuleConfiguration() {
+    public void assertUpdate() {
         ShardingRuleConfiguration currentRuleConfig = createCurrentRuleConfiguration();
         updater.updateCurrentRuleConfiguration(createSQLStatement("t_order"), currentRuleConfig);
         assertFalse(getShardingTables(currentRuleConfig).contains("t_order"));
         assertTrue(getBindingTables(currentRuleConfig).contains("t_order_item"));
+    }
+    
+    @Test
+    public void assertUpdateWithDifferentCase() {
+        ShardingRuleConfiguration currentRuleConfig = createCurrentRuleConfiguration();
+        updater.updateCurrentRuleConfiguration(createSQLStatement("T_ORDER"), currentRuleConfig);
+        assertFalse(getShardingTables(currentRuleConfig).contains("t_order"));
+        assertTrue(getBindingTables(currentRuleConfig).contains("t_order_item"));
+    }
+    
+    @Test
+    public void assertDropRuleAndUnusedAlgorithm() {
+        ShardingRuleConfiguration currentRuleConfig = createCurrentRuleConfiguration();
+        DropShardingTableRuleStatement sqlStatement = createSQLStatement("t_order");
+        sqlStatement.setDropUnusedAlgorithms(true);
+        updater.updateCurrentRuleConfiguration(sqlStatement, currentRuleConfig);
+        assertFalse(getShardingTables(currentRuleConfig).contains("t_order"));
+        assertTrue(getBindingTables(currentRuleConfig).contains("t_order_item"));
+        assertThat(currentRuleConfig.getShardingAlgorithms().size(), is(2));
     }
     
     private DropShardingTableRuleStatement createSQLStatement(final String tableName) {
@@ -87,9 +110,15 @@ public final class DropShardingTableRuleStatementUpdaterTest {
     
     private ShardingRuleConfiguration createCurrentRuleConfiguration() {
         ShardingRuleConfiguration result = new ShardingRuleConfiguration();
-        result.getTables().add(new ShardingTableRuleConfiguration("t_order_item"));
+        ShardingTableRuleConfiguration tableRuleConfig = new ShardingTableRuleConfiguration("t_order_item");
+        tableRuleConfig.setDatabaseShardingStrategy(new StandardShardingStrategyConfiguration("order_id", "t_order_item_algorithm"));
+        result.getTables().add(tableRuleConfig);
         result.getAutoTables().add(new ShardingAutoTableRuleConfiguration("t_order"));
         result.setBindingTableGroups(Collections.singleton("t_order_item"));
+        result.setDefaultTableShardingStrategy(new StandardShardingStrategyConfiguration("user_id", "default_table_strategy"));
+        result.getShardingAlgorithms().put("unused_algorithm", null);
+        result.getShardingAlgorithms().put("t_order_item_algorithm", null);
+        result.getShardingAlgorithms().put("default_table_strategy", null);
         return result;
     }
     

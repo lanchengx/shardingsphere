@@ -21,22 +21,23 @@ import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.apache.shardingsphere.infra.config.function.EnhancedRuleConfiguration;
-import org.apache.shardingsphere.infra.config.scope.SchemaRuleConfiguration;
+import org.apache.shardingsphere.infra.config.scope.DatabaseRuleConfiguration;
 
 import java.util.Optional;
 
 /**
  * Single table rule configuration.
  */
-@Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public final class SingleTableRuleConfiguration implements SchemaRuleConfiguration, EnhancedRuleConfiguration {
+@Setter
+public final class SingleTableRuleConfiguration implements DatabaseRuleConfiguration, EnhancedRuleConfiguration {
     
     private String defaultDataSource;
     
     /**
      * Get default data source.
+     * 
      * @return default data source
      */
     public Optional<String> getDefaultDataSource() {

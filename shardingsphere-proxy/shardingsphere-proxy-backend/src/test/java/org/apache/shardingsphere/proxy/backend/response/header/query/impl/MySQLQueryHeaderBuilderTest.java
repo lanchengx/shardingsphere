@@ -17,27 +17,20 @@
 
 package org.apache.shardingsphere.proxy.backend.response.header.query.impl;
 
-import org.apache.commons.lang3.concurrent.LazyInitializer;
-import org.apache.shardingsphere.infra.binder.segment.select.projection.ProjectionsContext;
-import org.apache.shardingsphere.infra.binder.segment.select.projection.impl.ColumnProjection;
-import org.apache.shardingsphere.infra.binder.segment.select.projection.impl.ExpressionProjection;
-import org.apache.shardingsphere.infra.database.metadata.DataSourceMetaData;
-import org.apache.shardingsphere.infra.database.type.dialect.MySQLDatabaseType;
+import org.apache.shardingsphere.infra.database.DefaultDatabase;
 import org.apache.shardingsphere.infra.executor.sql.execute.result.query.QueryResultMetaData;
-import org.apache.shardingsphere.infra.metadata.ShardingSphereMetaData;
-import org.apache.shardingsphere.infra.metadata.resource.DataSourcesMetaData;
-import org.apache.shardingsphere.infra.metadata.schema.ShardingSphereSchema;
-import org.apache.shardingsphere.infra.metadata.schema.model.ColumnMetaData;
-import org.apache.shardingsphere.infra.metadata.schema.model.IndexMetaData;
-import org.apache.shardingsphere.infra.metadata.schema.model.TableMetaData;
+import org.apache.shardingsphere.infra.metadata.database.ShardingSphereDatabase;
+import org.apache.shardingsphere.infra.metadata.database.schema.decorator.model.ShardingSphereColumn;
+import org.apache.shardingsphere.infra.metadata.database.schema.decorator.model.ShardingSphereIndex;
+import org.apache.shardingsphere.infra.metadata.database.schema.decorator.model.ShardingSphereSchema;
+import org.apache.shardingsphere.infra.metadata.database.schema.decorator.model.ShardingSphereTable;
 import org.apache.shardingsphere.infra.rule.identifier.type.DataNodeContainedRule;
-import org.apache.shardingsphere.proxy.backend.response.header.query.QueryHeaderBuilder;
+import org.apache.shardingsphere.proxy.backend.response.header.query.QueryHeader;
 import org.apache.shardingsphere.sharding.rule.ShardingRule;
 import org.junit.Test;
 
 import java.sql.SQLException;
 import java.sql.Types;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Optional;
 
@@ -51,144 +44,71 @@ import static org.mockito.Mockito.when;
 
 public final class MySQLQueryHeaderBuilderTest {
     
-    private final QueryHeaderBuilder queryHeaderBuilder = new MySQLQueryHeaderBuilder();
-    
     @Test
-    public void assertGetDatabaseType() {
-        assertThat(queryHeaderBuilder.getDatabaseType(), is(new MySQLDatabaseType().getName()));
-    }
-    
-    @Test
-    public void assertQueryHeaderSchema() throws SQLException {
-        ShardingSphereMetaData metaData = createMetaData();
-        QueryHeader actual = queryHeaderBuilder.build(createQueryResultMetaData(), metaData, 1, getDataNodeContainedRule(metaData));
-        assertThat(actual.getSchema(), is("sharding_schema"));
-    }
-    
-    @Test
-    public void assertQueryHeaderTable() throws SQLException {
-        ShardingSphereMetaData metaData = createMetaData();
-        QueryHeader actual = queryHeaderBuilder.build(createQueryResultMetaData(), metaData, 1, getDataNodeContainedRule(metaData));
+    public void assertBuild() throws SQLException {
+        QueryResultMetaData queryResultMetaData = createQueryResultMetaData();
+        QueryHeader actual = new MySQLQueryHeaderBuilder().build(queryResultMetaData, createDatabase(), queryResultMetaData.getColumnName(1), queryResultMetaData.getColumnLabel(1), 1);
+        assertThat(actual.getSchema(), is(DefaultDatabase.LOGIC_NAME));
         assertThat(actual.getTable(), is("t_logic_order"));
-    }
-    
-    @Test
-    public void assertQueryHeaderColumnLabel() throws SQLException {
-        ShardingSphereMetaData metaData = createMetaData();
-        QueryHeader actual = queryHeaderBuilder.build(createQueryResultMetaData(), metaData, 1, getDataNodeContainedRule(metaData));
         assertThat(actual.getColumnLabel(), is("order_id"));
-    }
-    
-    @Test
-    public void assertQueryHeaderColumnNameWithoutProjectionsContext() throws SQLException {
-        ShardingSphereMetaData metaData = createMetaData();
-        QueryHeader actual = queryHeaderBuilder.build(createQueryResultMetaData(), metaData, 1, getDataNodeContainedRule(metaData));
         assertThat(actual.getColumnName(), is("order_id"));
-    }
-    
-    @Test
-    public void assertQueryHeaderColumnNameFromProjectionsContext() throws SQLException {
-        ShardingSphereMetaData metaData = createMetaData();
-        QueryHeader actual = queryHeaderBuilder.build(createProjectionsContext(), createQueryResultMetaData(), metaData, 1, getDataNodeContainedRule(metaData));
-        assertThat(actual.getColumnName(), is("order_id"));
-    }
-    
-    @Test
-    public void assertQueryHeaderColumnNameFromMetaData() throws SQLException {
-        ShardingSphereMetaData metaData = createMetaData();
-        QueryHeader actual = queryHeaderBuilder.build(createProjectionsContext(), createQueryResultMetaData(), metaData, 2, getDataNodeContainedRule(metaData));
-        assertThat(actual.getColumnName(), is("expr"));
-    }
-    
-    @Test
-    public void assertQueryHeaderColumnLength() throws SQLException {
-        ShardingSphereMetaData metaData = createMetaData();
-        QueryHeader actual = queryHeaderBuilder.build(createQueryResultMetaData(), metaData, 1, getDataNodeContainedRule(metaData));
         assertThat(actual.getColumnLength(), is(1));
-    }
-    
-    @Test
-    public void assertQueryHeaderColumnType() throws SQLException {
-        ShardingSphereMetaData metaData = createMetaData();
-        QueryHeader actual = queryHeaderBuilder.build(createQueryResultMetaData(), metaData, 1, getDataNodeContainedRule(metaData));
         assertThat(actual.getColumnType(), is(Types.INTEGER));
-    }
-    
-    @Test
-    public void assertQueryHeaderDecimals() throws SQLException {
-        ShardingSphereMetaData metaData = createMetaData();
-        QueryHeader actual = queryHeaderBuilder.build(createQueryResultMetaData(), metaData, 1, getDataNodeContainedRule(metaData));
         assertThat(actual.getDecimals(), is(1));
-    }
-    
-    @Test
-    public void assertQueryHeaderSigned() throws SQLException {
-        ShardingSphereMetaData metaData = createMetaData();
-        QueryHeader actual = queryHeaderBuilder.build(createQueryResultMetaData(), metaData, 1, getDataNodeContainedRule(metaData));
         assertTrue(actual.isSigned());
-    }
-    
-    @Test
-    public void assertQueryHeaderPrimaryKey() throws SQLException {
-        ShardingSphereMetaData metaData = createMetaData();
-        QueryHeader actual = queryHeaderBuilder.build(createQueryResultMetaData(), metaData, 1, getDataNodeContainedRule(metaData));
         assertTrue(actual.isPrimaryKey());
-    }
-    
-    @Test
-    public void assertQueryHeaderPrimaryKeyWithoutColumn() throws SQLException {
-        ShardingSphereMetaData metaData = createMetaData();
-        QueryHeader actual = queryHeaderBuilder.build(createQueryResultMetaData(), metaData, 2, getDataNodeContainedRule(metaData));
-        assertFalse(actual.isPrimaryKey());
-    }
-    
-    @Test
-    public void assertQueryHeaderNotNull() throws SQLException {
-        ShardingSphereMetaData metaData = createMetaData();
-        QueryHeader actual = queryHeaderBuilder.build(createQueryResultMetaData(), metaData, 1, getDataNodeContainedRule(metaData));
         assertTrue(actual.isNotNull());
-    }
-    
-    @Test
-    public void assertQueryHeaderAutoIncrement() throws SQLException {
-        ShardingSphereMetaData metaData = createMetaData();
-        QueryHeader actual = queryHeaderBuilder.build(createQueryResultMetaData(), metaData, 1, getDataNodeContainedRule(metaData));
         assertTrue(actual.isAutoIncrement());
     }
     
     @Test
-    public void assertDataNodeContainedRuleIsNotPresent() throws SQLException {
-        ShardingSphereMetaData metaData = createMetaData();
-        QueryHeader actual = queryHeaderBuilder.build(createQueryResultMetaData(), metaData, 1, new LazyInitializer<DataNodeContainedRule>() {
-            
-            @Override
-            protected DataNodeContainedRule initialize() {
-                return null;
-            }
-        });
+    public void assertBuildWithoutPrimaryKeyColumn() throws SQLException {
+        QueryResultMetaData queryResultMetaData = createQueryResultMetaData();
+        assertFalse(new MySQLQueryHeaderBuilder().build(queryResultMetaData, createDatabase(), queryResultMetaData.getColumnName(2), queryResultMetaData.getColumnLabel(2), 2).isPrimaryKey());
+    }
+    
+    @Test
+    public void assertBuildWithNullDatabase() throws SQLException {
+        QueryResultMetaData queryResultMetaData = createQueryResultMetaData();
+        QueryHeader actual = new MySQLQueryHeaderBuilder().build(queryResultMetaData, null, queryResultMetaData.getColumnName(1), queryResultMetaData.getColumnLabel(1), 1);
         assertFalse(actual.isPrimaryKey());
         assertThat(actual.getTable(), is("t_order"));
     }
     
-    private ShardingSphereMetaData createMetaData() {
-        ShardingSphereMetaData result = mock(ShardingSphereMetaData.class, RETURNS_DEEP_STUBS);
-        ColumnMetaData columnMetaData = new ColumnMetaData("order_id", Types.INTEGER, true, false, false);
-        ShardingSphereSchema schema = mock(ShardingSphereSchema.class);
-        when(schema.get("t_logic_order")).thenReturn(new TableMetaData("t_logic_order", 
-                Collections.singletonList(columnMetaData), Collections.singletonList(new IndexMetaData("order_id")), Collections.emptyList()));
-        DataSourcesMetaData dataSourcesMetaData = mock(DataSourcesMetaData.class);
-        when(dataSourcesMetaData.getDataSourceMetaData("ds_0")).thenReturn(mock(DataSourceMetaData.class));
-        when(result.getResource().getDataSourcesMetaData()).thenReturn(dataSourcesMetaData);
-        when(result.getSchema()).thenReturn(schema);
-        ShardingRule shardingRule = mock(ShardingRule.class);
-        when(shardingRule.findLogicTableByActualTable("t_order")).thenReturn(Optional.of("t_logic_order"));
-        when(result.getRuleMetaData().getRules()).thenReturn(Collections.singletonList(shardingRule));
-        when(result.getName()).thenReturn("sharding_schema");
-        return result;
+    @Test
+    public void assertBuildWithNullSchema() throws SQLException {
+        ShardingSphereDatabase database = mock(ShardingSphereDatabase.class, RETURNS_DEEP_STUBS);
+        when(database.getSchemas()).thenReturn(Collections.emptyMap());
+        DataNodeContainedRule containedRule = mock(DataNodeContainedRule.class);
+        when(containedRule.findLogicTableByActualTable("t_order")).thenReturn(Optional.of("t_order"));
+        when(database.getRuleMetaData().findRules(DataNodeContainedRule.class)).thenReturn(Collections.singletonList(containedRule));
+        QueryResultMetaData queryResultMetaData = createQueryResultMetaData();
+        QueryHeader actual = new MySQLQueryHeaderBuilder().build(queryResultMetaData, database, queryResultMetaData.getColumnName(1), queryResultMetaData.getColumnLabel(1), 1);
+        assertFalse(actual.isPrimaryKey());
+        assertThat(actual.getTable(), is("t_order"));
     }
     
-    private ProjectionsContext createProjectionsContext() {
-        return new ProjectionsContext(0, 0, false, Arrays.asList(new ColumnProjection("o", "order_id", "id"), new ExpressionProjection("o.order_id + 1", "expr")));
+    @Test
+    public void assertBuildWithoutDataNodeContainedRule() throws SQLException {
+        QueryResultMetaData queryResultMetaData = createQueryResultMetaData();
+        QueryHeader actual = new MySQLQueryHeaderBuilder().build(
+                queryResultMetaData, mock(ShardingSphereDatabase.class, RETURNS_DEEP_STUBS), queryResultMetaData.getColumnName(1), queryResultMetaData.getColumnLabel(1), 1);
+        assertFalse(actual.isPrimaryKey());
+        assertThat(actual.getTable(), is(""));
+    }
+    
+    private ShardingSphereDatabase createDatabase() {
+        ShardingSphereDatabase result = mock(ShardingSphereDatabase.class, RETURNS_DEEP_STUBS);
+        ShardingSphereColumn column = new ShardingSphereColumn("order_id", Types.INTEGER, true, false, false);
+        ShardingSphereSchema schema = mock(ShardingSphereSchema.class);
+        when(schema.get("t_logic_order")).thenReturn(
+                new ShardingSphereTable("t_logic_order", Collections.singleton(column), Collections.singleton(new ShardingSphereIndex("order_id")), Collections.emptyList()));
+        when(result.getSchemas().get(DefaultDatabase.LOGIC_NAME)).thenReturn(schema);
+        ShardingRule shardingRule = mock(ShardingRule.class);
+        when(shardingRule.findLogicTableByActualTable("t_order")).thenReturn(Optional.of("t_logic_order"));
+        when(result.getRuleMetaData().findRules(DataNodeContainedRule.class)).thenReturn(Collections.singleton(shardingRule));
+        when(result.getName()).thenReturn(DefaultDatabase.LOGIC_NAME);
+        return result;
     }
     
     private QueryResultMetaData createQueryResultMetaData() throws SQLException {
@@ -205,15 +125,5 @@ public final class MySQLQueryHeaderBuilderTest {
         when(result.getDecimals(1)).thenReturn(1);
         when(result.isNotNull(1)).thenReturn(true);
         return result;
-    }
-    
-    private LazyInitializer<DataNodeContainedRule> getDataNodeContainedRule(final ShardingSphereMetaData metaData) {
-        return new LazyInitializer<DataNodeContainedRule>() {
-            
-            @Override
-            protected DataNodeContainedRule initialize() {
-                return metaData.getRuleMetaData().getRules().stream().filter(each -> each instanceof DataNodeContainedRule).findFirst().map(rule -> (DataNodeContainedRule) rule).get();
-            }
-        };
     }
 }

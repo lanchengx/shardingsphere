@@ -19,22 +19,10 @@ package org.apache.shardingsphere.mode.metadata;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import org.apache.shardingsphere.infra.config.props.ConfigurationProperties;
-import org.apache.shardingsphere.infra.executor.kernel.ExecutorEngine;
 import org.apache.shardingsphere.infra.federation.optimizer.context.OptimizerContext;
-import org.apache.shardingsphere.infra.federation.optimizer.context.OptimizerContextFactory;
-import org.apache.shardingsphere.infra.lock.ShardingSphereLock;
 import org.apache.shardingsphere.infra.metadata.ShardingSphereMetaData;
-import org.apache.shardingsphere.infra.metadata.rule.ShardingSphereRuleMetaData;
+import org.apache.shardingsphere.infra.rule.identifier.type.ResourceHeldRule;
 import org.apache.shardingsphere.mode.metadata.persist.MetaDataPersistService;
-
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Properties;
 
 /**
  * Meta data contexts.
@@ -43,65 +31,15 @@ import java.util.Properties;
 @Getter
 public final class MetaDataContexts implements AutoCloseable {
     
-    private final MetaDataPersistService metaDataPersistService;
+    private final MetaDataPersistService persistService;
     
-    private final Map<String, ShardingSphereMetaData> metaDataMap;
-    
-    private final ShardingSphereRuleMetaData globalRuleMetaData;
-    
-    private final ExecutorEngine executorEngine;
+    private final ShardingSphereMetaData metaData;
     
     private final OptimizerContext optimizerContext;
     
-    private final ConfigurationProperties props;
-    
-    public MetaDataContexts(final MetaDataPersistService metaDataPersistService) {
-        this(metaDataPersistService, new LinkedHashMap<>(), new ShardingSphereRuleMetaData(Collections.emptyList(), Collections.emptyList()), null, 
-                OptimizerContextFactory.create(new HashMap<>(), new ShardingSphereRuleMetaData(Collections.emptyList(), Collections.emptyList())), new ConfigurationProperties(new Properties()));
-    }
-    
-    /**
-     * Get persist service.
-     *
-     * @return persist service
-     */
-    public Optional<MetaDataPersistService> getMetaDataPersistService() {
-        return Optional.ofNullable(metaDataPersistService);
-    }
-    
-    /**
-     * Get all schema names.
-     *
-     * @return all schema names
-     */
-    public Collection<String> getAllSchemaNames() {
-        return metaDataMap.keySet();
-    }
-    
-    /**
-     * Get meta data.
-     *
-     * @param schemaName schema name
-     * @return meta data
-     */
-    public ShardingSphereMetaData getMetaData(final String schemaName) {
-        return metaDataMap.get(schemaName);
-    }
-    
-    /**
-     * Get lock.
-     *
-     * @return lock
-     */
-    public Optional<ShardingSphereLock> getLock() {
-        return Optional.empty();
-    }
-    
     @Override
     public void close() throws Exception {
-        executorEngine.close();
-        if (null != metaDataPersistService) {
-            metaDataPersistService.getRepository().close();
-        }
+        metaData.getGlobalRuleMetaData().findRules(ResourceHeldRule.class).forEach(ResourceHeldRule::closeStaleResource);
+        metaData.getDatabases().values().forEach(each -> each.getRuleMetaData().findRules(ResourceHeldRule.class).forEach(ResourceHeldRule::closeStaleResource));
     }
 }

@@ -23,12 +23,11 @@ chapter = true
  - 应尽量将设计精细化拆分；做到小幅度修改，多次数提交，但应保证提交的完整性。
  - 确保遵守编码规范。
  - 如果您使用 IDEA，可导入推荐的 [Settings](https://shardingsphere.apache.org/community/data/shardingsphere-settings.jar)。
+ - 通过 Spotless 统一代码风格，执行 `mvn spotless:apply` 格式化代码。
  
 ## 编码规范
 
  - 使用 linux 换行符。
- - 缩进（包含空行）和上一行保持一致。
- - 类声明后与下面的变量或方法之间需要空一行。
  - 不应有无意义的空行。请提炼私有方法，代替方法体过长或代码段逻辑闭环而采用的空行间隔。
  - 类、方法和变量的命名要做到顾名思义，避免使用缩写。
  - 返回值变量使用 `result` 命名；循环中使用 `each` 命名循环变量；map 中使用 `entry` 代替 `each`。
@@ -65,7 +64,7 @@ chapter = true
    - 正确性测试（Correct）：通过正确的输入，得到预期结果。
    - 合理性设计（Design）：与生产代码设计相结合，设计高质量的单元测试。
    - 容错性测试（Error）：通过非法数据、异常流程等错误的输入，得到预期结果。
- - 如无特殊理由，测试需全覆盖。
+ - 除去简单的 `getter /setter` 方法，以及声明 SPI 的静态代码，如：`getType / getOrder`，单元测试需全覆盖。
  - 每个测试用例需精确断言。
  - 准备环境的代码和测试代码分离。
  - 只有 junit `Assert`，hamcrest `CoreMatchers`，Mockito 相关可以使用 static import。
@@ -74,6 +73,7 @@ chapter = true
  - 精确断言，尽量不使用 `not`，`containsString` 断言。
  - 测试用例的真实值应名为为 actual XXX，期望值应命名为 expected XXX。
  - 测试类和 `@Test` 标注的方法无需 javadoc。
+ - 使用 Mockito mockStatic 和 mockConstruction 方法必须搭配 try-with-resource 或在清理方法中关闭，避免泄漏。
 
 ## G4 编码规范
  - 公共规范
@@ -89,3 +89,4 @@ chapter = true
    - 如果一个规则的分支超过 `5` 个，则每个分支一行。
    - 规则命名采用 java 变量的驼峰形式。
    - 为每种 SQL 语句类型定义一个独立的语法文件，文件名称由 `数据库名称` + `语句类型名称` + `Statement`。例如：`MySQLDQLStatement.g4`。
+   - 每个 `SQLStatement` 和 `SQLSegment` 实现类，必须添加 lombok `@ToString` 注解，如果实现类继承了某个父类，则需要添加 `callSuper = true` 参数。

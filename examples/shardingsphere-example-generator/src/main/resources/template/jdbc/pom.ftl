@@ -39,13 +39,62 @@
             <artifactId>shardingsphere-jdbc-core-spring-namespace</artifactId>
             <version>${r'${project.version}'}</version>
         </dependency>
-    <#elseif framework?contains("spring-boot-starter")>
+    </#if>
+    <#if transaction?contains("xa")>
         <dependency>
             <groupId>org.apache.shardingsphere</groupId>
-            <artifactId>shardingsphere-jdbc-core-spring-boot-starter</artifactId>
+            <artifactId>shardingsphere-transaction-xa-core</artifactId>
             <version>${r'${project.version}'}</version>
         </dependency>
-        
+    </#if>
+    <#if transaction=="xa-narayana">
+        <dependency>
+            <groupId>org.apache.shardingsphere</groupId>
+            <artifactId>shardingsphere-transaction-xa-narayana</artifactId>
+            <version>${r'${project.version}'}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jboss.narayana.jta</groupId>
+            <artifactId>jta</artifactId>
+            <version>5.9.1.Final</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jboss.narayana.jts</groupId>
+            <artifactId>narayana-jts-integration</artifactId>
+            <version>5.9.1.Final</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jboss</groupId>
+            <artifactId>jboss-transaction-spi</artifactId>
+            <version>7.6.0.Final</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jboss.logging</groupId>
+            <artifactId>jboss-logging</artifactId>
+            <version>3.2.1.Final</version>
+        </dependency>
+    <#elseif transaction=="xa-bitronix">
+        <dependency>
+            <groupId>org.apache.shardingsphere</groupId>
+            <artifactId>shardingsphere-transaction-xa-bitronix</artifactId>
+            <version>${r'${project.version}'}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.codehaus.btm</groupId>
+            <artifactId>btm</artifactId>
+            <version>2.1.3</version>
+        </dependency>
+    <#elseif transaction=="base-seata">
+        <dependency>
+            <groupId>org.apache.shardingsphere</groupId>
+            <artifactId>shardingsphere-transaction-base-seata-at</artifactId>
+            <version>${r'${project.version}'}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.seata</groupId>
+            <artifactId>seata-all</artifactId>
+            <version>1.4.2</version>
+        </dependency>
     </#if>
     <#if framework?contains("jpa")>
         <dependency>
@@ -73,7 +122,13 @@
             <artifactId>spring-context-support</artifactId>
             <version>5.2.15.RELEASE</version>
         </dependency>
-        <#if framework?contains("spring-boot-starter")>
+    </#if>
+    <#if framework?contains("spring-boot-starter")>
+        <dependency>
+            <groupId>org.apache.shardingsphere</groupId>
+            <artifactId>shardingsphere-jdbc-core-spring-boot-starter</artifactId>
+            <version>${r'${project.version}'}</version>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot</artifactId>
@@ -84,8 +139,8 @@
             <artifactId>spring-boot-autoconfigure</artifactId>
             <version>2.2.0.RELEASE</version>
         </dependency>
-        </#if>
-    <#elseif framework=="spring-boot-starter-jdbc">
+    </#if>
+    <#if framework=="spring-boot-starter-jdbc">
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot</artifactId>
@@ -96,7 +151,7 @@
             <artifactId>spring-boot-autoconfigure</artifactId>
             <version>2.2.0.RELEASE</version>
         </dependency>
-    <#elseif framework=="spring-boot-starter-mybaits">
+    <#elseif framework=="spring-boot-starter-mybatis">
         <dependency>
             <groupId>org.mybatis.spring.boot</groupId>
             <artifactId>mybatis-spring-boot-starter</artifactId>
@@ -131,6 +186,14 @@
         </dependency>
     </#if>
         
+    <#if feature=="encrypt">
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>1.18.20</version>
+            <scope>provided</scope>
+        </dependency>
+    </#if>
         <dependency>
             <groupId>com.zaxxer</groupId>
             <artifactId>HikariCP</artifactId>

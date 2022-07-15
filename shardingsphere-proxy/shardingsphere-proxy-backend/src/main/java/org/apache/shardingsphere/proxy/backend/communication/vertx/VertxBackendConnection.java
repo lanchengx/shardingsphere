@@ -24,6 +24,7 @@ import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
 import io.vertx.sqlclient.SqlClient;
 import io.vertx.sqlclient.SqlConnection;
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Getter;
 import org.apache.shardingsphere.infra.executor.sql.execute.engine.ConnectionMode;
 import org.apache.shardingsphere.infra.executor.sql.prepare.driver.vertx.ExecutorVertxConnectionManager;
@@ -52,17 +53,21 @@ public final class VertxBackendConnection implements BackendConnection<Future<Vo
     
     private final Multimap<String, Future<SqlConnection>> cachedConnections = LinkedHashMultimap.create();
     
+    private final AtomicBoolean closed;
+    
     public VertxBackendConnection(final ConnectionSession connectionSession) {
         if (TransactionType.LOCAL != connectionSession.getTransactionStatus().getTransactionType()) {
             throw new UnsupportedOperationException("Vert.x backend supports LOCAL transaction only for now.");
         }
+        closed = new AtomicBoolean(false);
         this.connectionSession = connectionSession;
     }
     
     @Override
     public List<Future<? extends SqlClient>> getConnections(final String dataSourceName, final int connectionSize, final ConnectionMode connectionMode) {
         return connectionSession.getTransactionStatus().isInTransaction()
-                ? getConnectionsWithTransaction(dataSourceName, connectionSize) : getConnectionsWithoutTransaction(dataSourceName);
+                ? getConnectionsWithTransaction(dataSourceName, connectionSize)
+                : getConnectionsWithoutTransaction(dataSourceName);
     }
     
     private List<Future<? extends SqlClient>> getConnectionsWithTransaction(final String dataSourceName, final int connectionSize) {
@@ -91,8 +96,8 @@ public final class VertxBackendConnection implements BackendConnection<Future<Vo
     }
     
     private List<Future<SqlConnection>> createNewConnections(final String dataSourceName, final int connectionSize) {
-        Preconditions.checkNotNull(connectionSession.getSchemaName(), "Current schema is null.");
-        List<Future<SqlConnection>> result = ReactiveProxyContext.getInstance().getVertxBackendDataSource().getConnections(connectionSession.getSchemaName(), dataSourceName, connectionSize);
+        Preconditions.checkNotNull(connectionSession.getDatabaseName(), "Current database is null.");
+        List<Future<SqlConnection>> result = ReactiveProxyContext.getInstance().getVertxBackendDataSource().getConnections(connectionSession.getDatabaseName(), dataSourceName, connectionSize);
         for (Future<SqlConnection> each : result) {
             replayMethodsInvocation(each);
         }
@@ -106,14 +111,19 @@ public final class VertxBackendConnection implements BackendConnection<Future<Vo
     }
     
     private List<Future<? extends SqlClient>> getConnectionsWithoutTransaction(final String dataSourceName) {
-        Preconditions.checkNotNull(connectionSession.getSchemaName(), "Current schema is null.");
+        Preconditions.checkNotNull(connectionSession.getDatabaseName(), "Current database is null.");
         // TODO At present, amount of connections without transaction is controlled by Vert.x pool.
-        Future<SqlClient> poolFuture = Future.succeededFuture(ReactiveProxyContext.getInstance().getVertxBackendDataSource().getPool(connectionSession.getSchemaName(), dataSourceName));
+        Future<SqlClient> poolFuture = Future.succeededFuture(ReactiveProxyContext.getInstance().getVertxBackendDataSource().getPool(connectionSession.getDatabaseName(), dataSourceName));
         return Collections.singletonList(poolFuture);
     }
     
     @Override
     public Future<Void> prepareForTaskExecution() {
+        return Future.succeededFuture();
+    }
+    
+    @Override
+    public Future<Void> handleAutoCommit() {
         if (!connectionSession.isAutoCommit() && !connectionSession.getTransactionStatus().isInTransaction()) {
             VertxLocalTransactionManager transactionManager = new VertxLocalTransactionManager(this);
             return transactionManager.begin();
@@ -125,12 +135,15 @@ public final class VertxBackendConnection implements BackendConnection<Future<Vo
     public Future<Void> closeExecutionResources() {
         if (!connectionSession.getTransactionStatus().isInTransaction()) {
             return closeAllConnections(false);
+        } else if (closed.get()) {
+            return closeAllConnections(true);
         }
         return Future.succeededFuture();
     }
     
     @Override
     public Future<Void> closeAllResources() {
+        closed.set(true);
         return closeAllConnections(true);
     }
     

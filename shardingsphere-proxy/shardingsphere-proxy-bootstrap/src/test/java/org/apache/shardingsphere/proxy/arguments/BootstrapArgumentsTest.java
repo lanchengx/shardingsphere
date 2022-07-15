@@ -19,62 +19,88 @@ package org.apache.shardingsphere.proxy.arguments;
 
 import org.junit.Test;
 
+import java.util.Arrays;
+import java.util.Optional;
+
 import static org.hamcrest.CoreMatchers.is;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 public final class BootstrapArgumentsTest {
     
     @Test
-    public void assertNewWithEmptyArgument() {
-        BootstrapArguments actual = new BootstrapArguments(new String[]{});
-        assertThat(actual.getPort(), is(3307));
-        assertThat(actual.getConfigurationPath(), is("/conf/"));
+    public void assertGetPortWithEmptyArgument() {
+        assertFalse(new BootstrapArguments(new String[]{}).getPort().isPresent());
     }
     
-    @SuppressWarnings("ResultOfObjectAllocationIgnored")
     @Test(expected = IllegalArgumentException.class)
-    public void assertNewWithWrongArgument() {
-        String wrongArgument = "WrongArgument";
-        try {
-            new BootstrapArguments(new String[]{wrongArgument});
-        } catch (final IllegalArgumentException ex) {
-            assertThat(ex.getMessage(), is(String.format("Invalid port `%s`.", wrongArgument)));
-            throw ex;
-        }
+    public void assertGetPortWithWrongArgument() {
+        new BootstrapArguments(new String[]{"WrongArgument"}).getPort();
     }
     
     @Test
-    public void assertNewWithOneArgumentOnly() {
-        BootstrapArguments actual = new BootstrapArguments(new String[]{"3306"});
-        assertThat(actual.getPort(), is(3306));
-        assertThat(actual.getConfigurationPath(), is("/conf/"));
+    public void assertGetPortWithDefaultArgument() {
+        assertFalse(new BootstrapArguments(new String[]{"-1"}).getPort().isPresent());
     }
     
     @Test
-    public void assertNewWithTwoArgumentsAndConfigurationPathWithoutSlash() {
-        BootstrapArguments actual = new BootstrapArguments(new String[]{"3306", "test_conf"});
-        assertThat(actual.getPort(), is(3306));
-        assertThat(actual.getConfigurationPath(), is("/test_conf/"));
+    public void assertGetPortWithSingleArgument() {
+        Optional<Integer> actual = new BootstrapArguments(new String[]{"3306"}).getPort();
+        assertTrue(actual.isPresent());
+        assertThat(actual.get(), is(3306));
     }
     
     @Test
-    public void assertNewWithTwoArgumentsAndConfigurationPathWithLeftSlash() {
-        BootstrapArguments actual = new BootstrapArguments(new String[]{"3306", "/test_conf"});
-        assertThat(actual.getPort(), is(3306));
-        assertThat(actual.getConfigurationPath(), is("/test_conf/"));
+    public void assertGetPortWithTwoArgument() {
+        Optional<Integer> actual = new BootstrapArguments(new String[]{"3306", "/test_conf/"}).getPort();
+        assertTrue(actual.isPresent());
+        assertThat(actual.get(), is(3306));
     }
     
     @Test
-    public void assertNewWithTwoArgumentsAndConfigurationPathWithRightSlash() {
-        BootstrapArguments actual = new BootstrapArguments(new String[]{"3306", "test_conf/"});
-        assertThat(actual.getPort(), is(3306));
-        assertThat(actual.getConfigurationPath(), is("/test_conf/"));
+    public void assertGetPortWithThreeArgument() {
+        Optional<Integer> actual = new BootstrapArguments(new String[]{"3306", "/test_conf/", "127.0.0.1"}).getPort();
+        assertTrue(actual.isPresent());
+        assertThat(actual.get(), is(3306));
     }
     
     @Test
-    public void assertNewWithTwoArgumentsAndConfigurationPathWithBothSlash() {
-        BootstrapArguments actual = new BootstrapArguments(new String[]{"3306", "/test_conf/"});
-        assertThat(actual.getPort(), is(3306));
-        assertThat(actual.getConfigurationPath(), is("/test_conf/"));
+    public void assertGetConfigurationPathWithEmptyArgument() {
+        assertThat(new BootstrapArguments(new String[]{}).getConfigurationPath(), is("/conf/"));
+    }
+    
+    @Test
+    public void assertGetConfigurationPathWithSingleArgument() {
+        assertThat(new BootstrapArguments(new String[]{"3306"}).getConfigurationPath(), is("/conf/"));
+    }
+    
+    @Test
+    public void assertGetConfigurationPathWithTwoArguments() {
+        assertThat(new BootstrapArguments(new String[]{"3306", "test_conf"}).getConfigurationPath(), is("/test_conf/"));
+        assertThat(new BootstrapArguments(new String[]{"3306", "/test_conf"}).getConfigurationPath(), is("/test_conf/"));
+        assertThat(new BootstrapArguments(new String[]{"3306", "test_conf/"}).getConfigurationPath(), is("/test_conf/"));
+        assertThat(new BootstrapArguments(new String[]{"3306", "/test_conf/"}).getConfigurationPath(), is("/test_conf/"));
+    }
+    
+    @Test
+    public void assertGetAddressesWithEmptyArgument() {
+        assertThat(new BootstrapArguments(new String[]{}).getAddresses(), is(Arrays.asList("0.0.0.0")));
+    }
+    
+    @Test
+    public void assertGetAddressesWithSingleArgument() {
+        assertThat(new BootstrapArguments(new String[]{"3306"}).getAddresses(), is(Arrays.asList("0.0.0.0")));
+    }
+    
+    @Test
+    public void assertGetAddressesWithTwoArgument() {
+        assertThat(new BootstrapArguments(new String[]{"3306", "test_conf"}).getAddresses(), is(Arrays.asList("0.0.0.0")));
+    }
+    
+    @Test
+    public void assertGetAddressesWithThreeArguments() {
+        assertThat(new BootstrapArguments(new String[]{"3306", "test_conf", "127.0.0.1"}).getAddresses(), is(Arrays.asList("127.0.0.1")));
+        assertThat(new BootstrapArguments(new String[]{"3306", "test_conf", "1.1.1.1,127.0.0.1"}).getAddresses(), is(Arrays.asList("1.1.1.1", "127.0.0.1")));
     }
 }

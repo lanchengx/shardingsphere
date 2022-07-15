@@ -141,6 +141,11 @@ chapter = true
                 <img src="https://avatars.githubusercontent.com/u/6637227?v=4" style="border-radius:50%; overflow:hidden">
             </a>
         </td>
+        <td>
+            <a href="https://github.com/TeslaCN" target="_blank">
+                <img src="https://avatars.githubusercontent.com/u/20503072?v=4" style="border-radius:50%; overflow:hidden">
+            </a>
+        </td>
     </tr>
     <tr align="center">
         <td>
@@ -148,6 +153,9 @@ chapter = true
         </td>
         <td>
             <b>Xiaoguang Ma</b>
+        </td>
+        <td>
+            <b>Weijie Wu</b>
         </td>
     </tr>
 </table>
@@ -277,11 +285,6 @@ chapter = true
     </tr>
     <tr>
         <td>
-            <a href="https://github.com/TeslaCN" target="_blank">
-                <img src="https://avatars.githubusercontent.com/u/20503072?v=4" style="border-radius:50%; overflow:hidden">
-            </a>
-        </td>
-        <td>
             <a href="https://github.com/Lucas-307" target="_blank">
                 <img src="https://avatars.githubusercontent.com/u/5524798?v=4" style="border-radius:50%; overflow:hidden">
             </a>
@@ -311,11 +314,13 @@ chapter = true
                 <img src="https://avatars.githubusercontent.com/u/12792261?v=4" style="border-radius:50%; overflow:hidden">
             </a>
         </td>
+        <td>
+            <a href="https://github.com/totalo" target="_blank">
+                <img src="https://avatars.githubusercontent.com/u/29777558?v=4" style="border-radius:50%; overflow:hidden">
+            </a>
+        </td>
     </tr>
     <tr align="center">
-        <td>
-            <b>Weijie Wu</b>
-        </td>
         <td>
             <b>Lu Qiu</b>
         </td>
@@ -334,13 +339,11 @@ chapter = true
         <td>
             <b>Xiao Yang</b>
         </td>
+        <td>
+            <b>Guocheng Tang</b>
+        </td>
     </tr>
     <tr>
-        <td>
-            <a href="https://github.com/totalo" target="_blank">
-                <img src="https://avatars.githubusercontent.com/u/29777558?v=4" style="border-radius:50%; overflow:hidden">
-            </a>
-        </td>
         <td>
             <a href="https://github.com/LeeGuoPing" target="_blank">
                 <img src="https://avatars.githubusercontent.com/u/35389145?v=4" style="border-radius:50%; overflow:hidden">
@@ -361,11 +364,23 @@ chapter = true
                 <img src="https://avatars.githubusercontent.com/u/66914151?v=4" style="border-radius:50%; overflow:hidden">
             </a>
          </td>
+        <td>
+            <a href="https://github.com/cheese8" target="_blank">
+                <img src="https://avatars.githubusercontent.com/u/25882819?v=4" style="border-radius:50%; overflow:hidden">
+            </a>
+        </td>
+        <td>
+            <a href="https://github.com/soulasuna" target="_blank">
+                <img src="https://avatars.githubusercontent.com/u/33794770?v=4" style="border-radius:50%; overflow:hidden">
+            </a>
+        </td>
+        <td>
+            <a href="https://github.com/galaxylqx" target="_blank">
+                <img src="https://avatars.githubusercontent.com/u/9473278?v=4" style="border-radius:50%; overflow:hidden">
+            </a>
+        </td>
     </tr>
     <tr align="center">
-        <td>
-            <b>Guocheng Tang</b>
-        </td>
         <td>
             <b>Guoping Li</b>
         </td>
@@ -378,6 +393,27 @@ chapter = true
          <td>
             <b>Liangda Wang</b>
          </td>
+        <td>
+            <b>cheese8</b>
+        </td>
+        <td>
+            <b>Yang Hou</b>
+        </td>
+        <td>
+            <b>Qunxing Lei</b>
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <a href="https://github.com/mabaiwan" target="_blank">
+                <img src="https://avatars.githubusercontent.com/u/77398366?v=4" style="border-radius:50%; overflow:hidden">
+            </a>
+        </td>
+    </tr>
+    <tr align="center">
+        <td>
+            <b>Chen Ma</b>
+        </td>
     </tr>
 </table>
 

@@ -32,15 +32,13 @@ import java.util.Collection;
 public abstract class AbstractReadwriteSplittingRuleConfigurationChecker<T extends RuleConfiguration> implements RuleConfigurationChecker<T> {
     
     @Override
-    public final void check(final String schemaName, final T config) {
-        checkDataSources(schemaName, getDataSources(config));
+    public final void check(final String databaseName, final T config) {
+        checkDataSources(databaseName, getDataSources(config));
     }
     
-    private void checkDataSources(final String schemaName, final Collection<ReadwriteSplittingDataSourceRuleConfiguration> dataSources) {
-        dataSources.forEach(each -> {
-            Preconditions.checkState(!each.getType().isEmpty(), "No available readwrite-splitting rule configuration in schema `%s`.", schemaName);
-            Preconditions.checkState(!each.getProps().isEmpty(), "No available readwrite-splitting rule configuration in schema `%s`.", schemaName);
-        });
+    private void checkDataSources(final String databaseName, final Collection<ReadwriteSplittingDataSourceRuleConfiguration> dataSources) {
+        dataSources.forEach(each -> Preconditions.checkState(null != each.getStaticStrategy() || null != each.getDynamicStrategy(),
+                "No available readwrite-splitting rule configuration in database `%s`.", databaseName));
     }
     
     protected abstract Collection<ReadwriteSplittingDataSourceRuleConfiguration> getDataSources(T config);

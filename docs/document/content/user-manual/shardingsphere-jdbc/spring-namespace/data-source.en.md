@@ -4,11 +4,14 @@ weight = 2
 chapter = true
 +++
 
-Any data source configured as spring bean can be cooperated with spring namespace.
+## Background
 
-## Example
+Any data source object configured as Spring bean can be used with the Spring namespace of ShardingSphere-JDBC Data Planning.
 
-In this example, the database driver is MySQL, and connection pool is HikariCP, which can be replaced with other database drivers and connection pools.
+The database driver in the example is MySQL and the connection pool is HikariCP, both of which can be replaced by other database drivers and connection pools.
+When using ShardingSphere JDBC, the property names of the JDBC pools depend on the definition of JDBC pools themselves respectively, rather than being rigidly defined by ShardingSphere. For relevant processing, you can see reference class `org.apache.shardingsphere.infra.datasource.pool.creator.DataSourcePoolCreator`. As for Alibaba Druid 1.2.9, using `url` instead of `jdbcUrl` as in the following example is the expected behavior.
+
+## Configuration Examples
 
 ```xml
 <beans xmlns="http://www.springframework.org/schema/beans"
@@ -33,6 +36,6 @@ In this example, the database driver is MySQL, and connection pool is HikariCP, 
         <property name="password" value="" />
     </bean>
     
-    <shardingsphere:data-source id="ds" schema-name="foo_schema" data-source-names="ds1,ds2" rule-refs="..." />
+    <shardingsphere:data-source id="ds" database-name="foo_schema" data-source-names="ds1,ds2" rule-refs="..." />
 </beans>
 ```

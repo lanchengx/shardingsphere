@@ -17,7 +17,7 @@
 
 package org.apache.shardingsphere.infra.parser.sql;
 
-import com.google.common.cache.LoadingCache;
+import com.github.benmanes.caffeine.cache.LoadingCache;
 import org.apache.shardingsphere.infra.parser.cache.SQLStatementCacheBuilder;
 import org.apache.shardingsphere.sql.parser.api.CacheOption;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.SQLStatement;
@@ -30,7 +30,7 @@ public final class SQLStatementParserEngine {
     private final SQLStatementParserExecutor sqlStatementParserExecutor;
     
     private final LoadingCache<String, SQLStatement> sqlStatementCache;
-
+    
     public SQLStatementParserEngine(final String databaseType, final CacheOption sqlStatementCacheOption, final CacheOption parseTreeCacheOption, final boolean isParseComment) {
         sqlStatementParserExecutor = new SQLStatementParserExecutor(databaseType, parseTreeCacheOption, isParseComment);
         sqlStatementCache = SQLStatementCacheBuilder.build(databaseType, sqlStatementCacheOption, parseTreeCacheOption, isParseComment);
@@ -44,6 +44,6 @@ public final class SQLStatementParserEngine {
      * @return SQL statement
      */
     public SQLStatement parse(final String sql, final boolean useCache) {
-        return useCache ? sqlStatementCache.getUnchecked(sql) : sqlStatementParserExecutor.parse(sql);
+        return useCache ? sqlStatementCache.get(sql) : sqlStatementParserExecutor.parse(sql);
     }
 }

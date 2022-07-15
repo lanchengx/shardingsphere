@@ -32,7 +32,8 @@ public final class JDBCExampleScenario implements FrameworkExampleScenario {
     
     @Override
     public Map<String, String> getJavaClassTemplateMap() {
-        Map<String, String> result = new HashMap<>(4, 1);
+        Map<String, String> result = new HashMap<>(5, 1);
+        result.put("java/main/JDBCExampleMain.ftl", "ExampleMain.java");
         result.put("java/config/Configuration.ftl", "config/Configuration.java");
         result.put("java/repository/jdbc/OrderItemRepository.ftl", "repository/OrderItemRepository.java");
         result.put("java/repository/jdbc/OrderRepository.ftl", "repository/OrderRepository.java");
@@ -47,7 +48,7 @@ public final class JDBCExampleScenario implements FrameworkExampleScenario {
     
     @Override
     public Collection<String> getJavaClassPaths() {
-        Collection<String> result = new HashSet<>();
+        Collection<String> result = new HashSet<>(2, 1);
         result.add("config");
         result.add("repository");
         return result;

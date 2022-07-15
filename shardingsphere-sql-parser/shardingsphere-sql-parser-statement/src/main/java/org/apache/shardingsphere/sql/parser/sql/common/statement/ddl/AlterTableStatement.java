@@ -66,9 +66,9 @@ public abstract class AlterTableStatement extends AbstractSQLStatement implement
     private final Collection<ModifyConstraintDefinitionSegment> modifyConstraintDefinitions = new LinkedList<>();
     
     private final Collection<DropConstraintDefinitionSegment> dropConstraintDefinitions = new LinkedList<>();
-
+    
     private final Collection<DropIndexDefinitionSegment> dropIndexDefinitions = new LinkedList<>();
-
+    
     /**
      * Get rename table.
      *
@@ -86,5 +86,4 @@ public abstract class AlterTableStatement extends AbstractSQLStatement implement
     public Optional<ConvertTableDefinitionSegment> getConvertTableDefinition() {
         return Optional.ofNullable(convertTableDefinition);
     }
-    
 }

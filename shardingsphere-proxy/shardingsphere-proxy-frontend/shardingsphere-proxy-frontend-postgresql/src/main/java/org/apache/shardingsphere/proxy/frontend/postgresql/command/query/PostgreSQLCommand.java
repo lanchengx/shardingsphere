@@ -18,8 +18,7 @@
 package org.apache.shardingsphere.proxy.frontend.postgresql.command.query;
 
 import lombok.Getter;
-import org.apache.shardingsphere.distsql.parser.statement.rdl.create.AddResourceStatement;
-import org.apache.shardingsphere.sharding.distsql.parser.statement.CreateShardingTableRuleStatement;
+import org.apache.shardingsphere.distsql.parser.statement.DistSQLStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.SQLStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.dal.AnalyzeTableStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.dal.ResetParameterStatement;
@@ -28,26 +27,32 @@ import org.apache.shardingsphere.sql.parser.sql.common.statement.dal.VacuumState
 import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.AlterFunctionStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.AlterIndexStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.AlterProcedureStatement;
+import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.AlterSchemaStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.AlterSequenceStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.AlterTableStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.AlterTablespaceStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.AlterViewStatement;
+import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.CloseStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.CreateDatabaseStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.CreateFunctionStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.CreateIndexStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.CreateProcedureStatement;
+import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.CreateSchemaStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.CreateSequenceStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.CreateTableStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.CreateTablespaceStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.CreateViewStatement;
+import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.DeclareStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.DropDatabaseStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.DropFunctionStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.DropIndexStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.DropProcedureStatement;
+import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.DropSchemaStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.DropSequenceStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.DropTableStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.DropTablespaceStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.DropViewStatement;
+import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.MoveStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.ddl.TruncateStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.dml.CallStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.dml.DeleteStatement;
@@ -62,6 +67,7 @@ import org.apache.shardingsphere.sql.parser.sql.common.statement.tcl.RollbackSta
 import org.apache.shardingsphere.sql.parser.sql.common.statement.tcl.SavepointStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.tcl.SetTransactionStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.tcl.StartTransactionStatement;
+import org.apache.shardingsphere.sql.parser.sql.dialect.statement.opengauss.ddl.OpenGaussCursorStatement;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -71,6 +77,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * PostgreSQL command.
+ *
  * @see <a href="https://www.postgresql.org/docs/13/sql-commands.html">SQL Commands</a>
  */
 @Getter
@@ -87,15 +94,16 @@ public enum PostgreSQLCommand {
     ALTER_FUNCTION(AlterFunctionStatement.class),
     ALTER_INDEX(AlterIndexStatement.class),
     ALTER_PROCEDURE(AlterProcedureStatement.class),
+    ALTER_SCHEMA(AlterSchemaStatement.class),
     ALTER_SEQUENCE(AlterSequenceStatement.class),
     ALTER_TABLESPACE(AlterTablespaceStatement.class),
     ALTER_TABLE(AlterTableStatement.class),
     ALTER_VIEW(AlterViewStatement.class),
-    CREATE(AddResourceStatement.class, CreateShardingTableRuleStatement.class),
     CREATE_DATABASE(CreateDatabaseStatement.class),
     CREATE_FUNCTION(CreateFunctionStatement.class),
     CREATE_INDEX(CreateIndexStatement.class),
     CREATE_PROCEDURE(CreateProcedureStatement.class),
+    CREATE_SCHEMA(CreateSchemaStatement.class),
     CREATE_SEQUENCE(CreateSequenceStatement.class),
     CREATE_TABLESPACE(CreateTablespaceStatement.class),
     CREATE_TABLE(CreateTableStatement.class),
@@ -104,6 +112,7 @@ public enum PostgreSQLCommand {
     DROP_FUNCTION(DropFunctionStatement.class),
     DROP_INDEX(DropIndexStatement.class),
     DROP_PROCEDURE(DropProcedureStatement.class),
+    DROP_SCHEMA(DropSchemaStatement.class),
     DROP_SEQUENCE(DropSequenceStatement.class),
     DROP_TABLESPACE(DropTablespaceStatement.class),
     DROP_TABLE(DropTableStatement.class),
@@ -116,7 +125,11 @@ public enum PostgreSQLCommand {
     ROLLBACK(RollbackStatement.class),
     RELEASE(ReleaseSavepointStatement.class),
     SET(SetStatement.class, SetTransactionStatement.class),
-    RESET(ResetParameterStatement.class);
+    RESET(ResetParameterStatement.class),
+    DECLARE_CURSOR(OpenGaussCursorStatement.class, DeclareStatement.class),
+    MOVE(MoveStatement.class),
+    CLOSE_CURSOR(CloseStatement.class),
+    SUCCESS(DistSQLStatement.class);
     
     private static final Map<Class<? extends SQLStatement>, Optional<PostgreSQLCommand>> COMPUTED_CLASSES = new ConcurrentHashMap<>(64, 1);
     

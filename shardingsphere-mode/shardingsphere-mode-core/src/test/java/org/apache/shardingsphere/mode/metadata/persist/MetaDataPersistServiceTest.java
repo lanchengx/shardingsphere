@@ -19,18 +19,17 @@ package org.apache.shardingsphere.mode.metadata.persist;
 
 import lombok.SneakyThrows;
 import org.apache.shardingsphere.infra.config.RuleConfiguration;
+import org.apache.shardingsphere.infra.config.database.DatabaseConfiguration;
+import org.apache.shardingsphere.infra.config.database.impl.DataSourceProvidedDatabaseConfiguration;
 import org.apache.shardingsphere.infra.config.props.ConfigurationPropertyKey;
-import org.apache.shardingsphere.infra.config.schema.SchemaConfiguration;
-import org.apache.shardingsphere.infra.config.schema.impl.DataSourceProvidedSchemaConfiguration;
 import org.apache.shardingsphere.infra.datasource.props.DataSourceProperties;
 import org.apache.shardingsphere.infra.datasource.props.DataSourcePropertiesCreator;
 import org.apache.shardingsphere.infra.yaml.config.swapper.YamlRuleConfigurationSwapperEngine;
 import org.apache.shardingsphere.infra.yaml.engine.YamlEngine;
-import org.apache.shardingsphere.mode.metadata.persist.service.ComputeNodePersistService;
 import org.apache.shardingsphere.mode.metadata.persist.service.impl.DataSourcePersistService;
+import org.apache.shardingsphere.mode.metadata.persist.service.impl.DatabaseRulePersistService;
 import org.apache.shardingsphere.mode.metadata.persist.service.impl.GlobalRulePersistService;
 import org.apache.shardingsphere.mode.metadata.persist.service.impl.PropertiesPersistService;
-import org.apache.shardingsphere.mode.metadata.persist.service.impl.SchemaRulePersistService;
 import org.apache.shardingsphere.mode.persist.PersistRepository;
 import org.apache.shardingsphere.test.mock.MockedDataSource;
 import org.junit.Before;
@@ -60,13 +59,13 @@ import static org.mockito.Mockito.verify;
 @RunWith(MockitoJUnitRunner.class)
 public final class MetaDataPersistServiceTest {
     
-    private static final String SCHEMA_RULE_YAML = "yaml/persist/data-schema-rule.yaml";
+    private static final String SCHEMA_RULE_YAML = "yaml/persist/data-database-rule.yaml";
     
     @Mock
     private DataSourcePersistService dataSourceService;
     
     @Mock
-    private SchemaRulePersistService schemaRuleService;
+    private DatabaseRulePersistService databaseRulePersistService;
     
     @Mock
     private GlobalRulePersistService globalRuleService;
@@ -74,19 +73,15 @@ public final class MetaDataPersistServiceTest {
     @Mock
     private PropertiesPersistService propsService;
     
-    @Mock
-    private ComputeNodePersistService computeNodePersistService;
-    
     private MetaDataPersistService metaDataPersistService;
     
     @Before
     public void setUp() throws ReflectiveOperationException {
         metaDataPersistService = new MetaDataPersistService(mock(PersistRepository.class));
         setField("dataSourceService", dataSourceService);
-        setField("schemaRuleService", schemaRuleService);
+        setField("databaseRulePersistService", databaseRulePersistService);
         setField("globalRuleService", globalRuleService);
         setField("propsService", propsService);
-        setField("computeNodePersistService", computeNodePersistService);
     }
     
     private void setField(final String name, final Object value) throws ReflectiveOperationException {
@@ -102,22 +97,16 @@ public final class MetaDataPersistServiceTest {
         Collection<RuleConfiguration> globalRuleConfigs = createGlobalRuleConfigurations();
         Properties props = createProperties();
         metaDataPersistService.persistConfigurations(
-                Collections.singletonMap("foo_db", new DataSourceProvidedSchemaConfiguration(dataSourceMap, ruleConfigs)), globalRuleConfigs, props, false);
+                Collections.singletonMap("foo_db", new DataSourceProvidedDatabaseConfiguration(dataSourceMap, ruleConfigs)), globalRuleConfigs, props, false);
         verify(dataSourceService).persist("foo_db", createDataSourcePropertiesMap(dataSourceMap), false);
-        verify(schemaRuleService).persist("foo_db", ruleConfigs, false);
+        verify(databaseRulePersistService).persist("foo_db", ruleConfigs, false);
         verify(globalRuleService).persist(globalRuleConfigs, false);
         verify(propsService).persist(props, false);
     }
     
     private Map<String, DataSourceProperties> createDataSourcePropertiesMap(final Map<String, DataSource> dataSourceMap) {
         return dataSourceMap.entrySet().stream().collect(
-            Collectors.toMap(Entry::getKey, entry -> DataSourcePropertiesCreator.create(entry.getValue()), (oldValue, currentValue) -> oldValue, LinkedHashMap::new));
-    }
-    
-    @Test
-    public void assertPersistInstanceLabels() {
-        metaDataPersistService.persistInstanceLabels("127.0.0.1@3307", Collections.singletonList("foo_label"), false);
-        verify(computeNodePersistService).persistInstanceLabels("127.0.0.1@3307", Collections.singletonList("foo_label"), false);
+                Collectors.toMap(Entry::getKey, entry -> DataSourcePropertiesCreator.create(entry.getValue()), (oldValue, currentValue) -> oldValue, LinkedHashMap::new));
     }
     
     private Map<String, DataSource> createDataSourceMap() {
@@ -160,8 +149,8 @@ public final class MetaDataPersistServiceTest {
     public void assertGetEffectiveDataSources() {
         Map<String, DataSource> dataSourceMap = createDataSourceMap();
         Collection<RuleConfiguration> ruleConfigs = createRuleConfigurations();
-        Map<String, SchemaConfiguration> schemaConfigs = Collections.singletonMap("foo_db", new DataSourceProvidedSchemaConfiguration(dataSourceMap, ruleConfigs));
-        Map<String, DataSource> resultEffectiveDataSources = metaDataPersistService.getEffectiveDataSources("foo_db", schemaConfigs);
+        Map<String, DatabaseConfiguration> databaseConfigs = Collections.singletonMap("foo_db", new DataSourceProvidedDatabaseConfiguration(dataSourceMap, ruleConfigs));
+        Map<String, DataSource> resultEffectiveDataSources = metaDataPersistService.getEffectiveDataSources("foo_db", databaseConfigs);
         assertTrue(resultEffectiveDataSources.isEmpty());
     }
 }

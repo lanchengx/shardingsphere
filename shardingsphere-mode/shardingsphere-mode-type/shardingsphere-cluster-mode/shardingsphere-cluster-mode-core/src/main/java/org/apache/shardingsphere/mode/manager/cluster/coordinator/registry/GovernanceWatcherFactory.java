@@ -18,7 +18,7 @@
 package org.apache.shardingsphere.mode.manager.cluster.coordinator.registry;
 
 import lombok.RequiredArgsConstructor;
-import org.apache.shardingsphere.infra.eventbus.ShardingSphereEventBus;
+import org.apache.shardingsphere.infra.eventbus.EventBusContext;
 import org.apache.shardingsphere.mode.repository.cluster.ClusterPersistRepository;
 import org.apache.shardingsphere.spi.ShardingSphereServiceLoader;
 
@@ -34,11 +34,13 @@ public final class GovernanceWatcherFactory {
     
     private final ClusterPersistRepository repository;
     
+    private final EventBusContext eventBusContext;
+    
     /**
      * Watch listeners.
      */
     public void watchListeners() {
-        for (GovernanceWatcher<?> each : ShardingSphereServiceLoader.getSingletonServiceInstances(GovernanceWatcher.class)) {
+        for (GovernanceWatcher<?> each : ShardingSphereServiceLoader.getServiceInstances(GovernanceWatcher.class)) {
             watch(each);
         }
     }
@@ -52,7 +54,7 @@ public final class GovernanceWatcherFactory {
     private void watch(final String watchingKey, final GovernanceWatcher<?> listener) {
         repository.watch(watchingKey, dataChangedEventListener -> {
             if (listener.getWatchingTypes().contains(dataChangedEventListener.getType())) {
-                listener.createGovernanceEvent(dataChangedEventListener).ifPresent(ShardingSphereEventBus.getInstance()::post);
+                listener.createGovernanceEvent(dataChangedEventListener).ifPresent(eventBusContext::post);
             }
         });
     }

@@ -20,20 +20,21 @@ package org.apache.shardingsphere.proxy.backend.text.distsql.rdl.resource;
 import com.zaxxer.hikari.HikariDataSource;
 import org.apache.shardingsphere.distsql.parser.segment.DataSourceSegment;
 import org.apache.shardingsphere.distsql.parser.statement.rdl.alter.AlterResourceStatement;
-import org.apache.shardingsphere.infra.datasource.props.DataSourcePropertiesValidator;
 import org.apache.shardingsphere.infra.database.type.dialect.MySQLDatabaseType;
+import org.apache.shardingsphere.infra.datasource.props.DataSourcePropertiesValidator;
 import org.apache.shardingsphere.infra.distsql.exception.DistSQLException;
 import org.apache.shardingsphere.infra.distsql.exception.resource.DuplicateResourceException;
 import org.apache.shardingsphere.infra.distsql.exception.resource.InvalidResourcesException;
 import org.apache.shardingsphere.infra.distsql.exception.resource.RequiredResourceMissedException;
-import org.apache.shardingsphere.infra.metadata.ShardingSphereMetaData;
-import org.apache.shardingsphere.infra.metadata.resource.ShardingSphereResource;
+import org.apache.shardingsphere.infra.metadata.database.ShardingSphereDatabase;
+import org.apache.shardingsphere.infra.metadata.database.resource.ShardingSphereResource;
 import org.apache.shardingsphere.mode.manager.ContextManager;
 import org.apache.shardingsphere.mode.metadata.MetaDataContexts;
 import org.apache.shardingsphere.proxy.backend.context.ProxyContext;
 import org.apache.shardingsphere.proxy.backend.response.header.ResponseHeader;
 import org.apache.shardingsphere.proxy.backend.response.header.update.UpdateResponseHeader;
 import org.apache.shardingsphere.proxy.backend.session.ConnectionSession;
+import org.apache.shardingsphere.proxy.backend.util.ProxyContextRestorer;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -43,18 +44,19 @@ import org.mockito.junit.MockitoJUnitRunner;
 
 import javax.sql.DataSource;
 import java.lang.reflect.Field;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.Properties;
 
-import static org.junit.Assert.assertTrue;
+import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
-public final class AlterResourceBackendHandlerTest {
+public final class AlterResourceBackendHandlerTest extends ProxyContextRestorer {
     
     @Mock
     private DataSourcePropertiesValidator validator;
@@ -69,7 +71,7 @@ public final class AlterResourceBackendHandlerTest {
     private MetaDataContexts metaDataContexts;
     
     @Mock
-    private ShardingSphereMetaData metaData;
+    private ShardingSphereDatabase database;
     
     @Mock
     private ShardingSphereResource resource;
@@ -81,7 +83,8 @@ public final class AlterResourceBackendHandlerTest {
     
     @Before
     public void setUp() throws Exception {
-        alterResourceBackendHandler = new AlterResourceBackendHandler(new MySQLDatabaseType(), alterResourceStatement, connectionSession);
+        when(connectionSession.getDatabaseType()).thenReturn(new MySQLDatabaseType());
+        alterResourceBackendHandler = new AlterResourceBackendHandler(alterResourceStatement, connectionSession);
         Field field = alterResourceBackendHandler.getClass().getDeclaredField("validator");
         field.setAccessible(true);
         field.set(alterResourceBackendHandler, validator);
@@ -91,43 +94,39 @@ public final class AlterResourceBackendHandlerTest {
     public void assertExecute() throws Exception {
         ContextManager contextManager = mock(ContextManager.class, RETURNS_DEEP_STUBS);
         when(contextManager.getMetaDataContexts()).thenReturn(metaDataContexts);
-        ProxyContext.getInstance().init(contextManager);
-        when(metaDataContexts.getAllSchemaNames()).thenReturn(Collections.singleton("test_schema"));
-        when(metaDataContexts.getMetaData("test_schema")).thenReturn(metaData);
-        when(metaData.getResource()).thenReturn(resource);
+        ProxyContext.init(contextManager);
+        when(metaDataContexts.getMetaData().getDatabases()).thenReturn(Collections.singletonMap("test_db", database));
+        when(database.getResource()).thenReturn(resource);
         when(resource.getDataSources()).thenReturn(Collections.singletonMap("ds_0", mockHikariDataSource("ds_0")));
-        ResponseHeader responseHeader = alterResourceBackendHandler.execute("test_schema", createAlterResourceStatement("ds_0"));
-        assertTrue(responseHeader instanceof UpdateResponseHeader);
+        assertThat(alterResourceBackendHandler.execute("test_db", createAlterResourceStatement("ds_0")), instanceOf(UpdateResponseHeader.class));
     }
     
     @Test(expected = DuplicateResourceException.class)
     public void assertExecuteWithDuplicateResourceNames() throws DistSQLException {
-        alterResourceBackendHandler.execute("test_schema", createAlterResourceStatementWithDuplicateResourceNames());
+        alterResourceBackendHandler.execute("test_db", createAlterResourceStatementWithDuplicateResourceNames());
     }
     
     @Test(expected = RequiredResourceMissedException.class)
     public void assertExecuteWithNotExistedResourceNames() throws DistSQLException {
         ContextManager contextManager = mock(ContextManager.class, RETURNS_DEEP_STUBS);
         when(contextManager.getMetaDataContexts()).thenReturn(metaDataContexts);
-        ProxyContext.getInstance().init(contextManager);
-        when(metaDataContexts.getAllSchemaNames()).thenReturn(Collections.singleton("test_schema"));
-        when(metaDataContexts.getMetaData("test_schema")).thenReturn(metaData);
-        when(metaData.getResource()).thenReturn(resource);
+        ProxyContext.init(contextManager);
+        when(metaDataContexts.getMetaData().getDatabases()).thenReturn(Collections.singletonMap("test_db", database));
+        when(database.getResource()).thenReturn(resource);
         when(resource.getDataSources()).thenReturn(Collections.singletonMap("ds_0", dataSource));
-        alterResourceBackendHandler.execute("test_schema", createAlterResourceStatement("not_existed"));
+        alterResourceBackendHandler.execute("test_db", createAlterResourceStatement("not_existed"));
     }
     
     @Test(expected = InvalidResourcesException.class)
     public void assertExecuteWithAlterDatabase() throws Exception {
         ContextManager contextManager = mock(ContextManager.class, RETURNS_DEEP_STUBS);
         when(contextManager.getMetaDataContexts()).thenReturn(metaDataContexts);
-        ProxyContext.getInstance().init(contextManager);
-        when(metaDataContexts.getAllSchemaNames()).thenReturn(Collections.singleton("test_schema"));
-        when(metaDataContexts.getMetaData("test_schema")).thenReturn(metaData);
-        when(metaData.getResource()).thenReturn(resource);
+        ProxyContext.init(contextManager);
+        when(metaDataContexts.getMetaData().getDatabases()).thenReturn(Collections.singletonMap("test_db", database));
+        when(database.getResource()).thenReturn(resource);
         when(resource.getDataSources()).thenReturn(Collections.singletonMap("ds_0", mockHikariDataSource("ds_1")));
-        ResponseHeader responseHeader = alterResourceBackendHandler.execute("test_schema", createAlterResourceStatement("ds_0"));
-        assertTrue(responseHeader instanceof UpdateResponseHeader);
+        ResponseHeader responseHeader = alterResourceBackendHandler.execute("test_db", createAlterResourceStatement("ds_0"));
+        assertThat(responseHeader, instanceOf(UpdateResponseHeader.class));
     }
     
     private AlterResourceStatement createAlterResourceStatement(final String resourceName) {
@@ -135,7 +134,7 @@ public final class AlterResourceBackendHandlerTest {
     }
     
     private AlterResourceStatement createAlterResourceStatementWithDuplicateResourceNames() {
-        List<DataSourceSegment> result = new LinkedList<>();
+        Collection<DataSourceSegment> result = new LinkedList<>();
         result.add(new DataSourceSegment("ds_0", "jdbc:mysql://127.0.0.1:3306/ds_0", null, null, null, "root", "", new Properties()));
         result.add(new DataSourceSegment("ds_0", "jdbc:mysql://127.0.0.1:3306/ds_1", null, null, null, "root", "", new Properties()));
         return new AlterResourceStatement(result);

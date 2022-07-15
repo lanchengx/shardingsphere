@@ -23,7 +23,7 @@ import org.apache.shardingsphere.infra.binder.statement.SQLStatementContext;
 import org.apache.shardingsphere.infra.config.props.ConfigurationPropertyKey;
 import org.apache.shardingsphere.infra.context.kernel.KernelProcessor;
 import org.apache.shardingsphere.infra.database.type.DatabaseType;
-import org.apache.shardingsphere.infra.database.type.DatabaseTypeRegistry;
+import org.apache.shardingsphere.infra.database.type.DatabaseTypeEngine;
 import org.apache.shardingsphere.infra.executor.check.SQLCheckEngine;
 import org.apache.shardingsphere.infra.executor.kernel.model.ExecutionGroup;
 import org.apache.shardingsphere.infra.executor.kernel.model.ExecutionGroupContext;
@@ -56,7 +56,6 @@ import org.apache.shardingsphere.sql.parser.sql.common.statement.dml.UpdateState
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -90,7 +89,8 @@ public final class MySQLMultiStatementsHandler implements TextProtocolBackendHan
     
     private ExecutionContext anyExecutionContext;
     
-    public MySQLMultiStatementsHandler(final ConnectionSession connectionSession, final SQLStatement sqlStatementSample, final String sql) {
+    public MySQLMultiStatementsHandler(final ConnectionSession connectionSession, final SQLStatement sqlStatementSample, final String sql) throws SQLException {
+        connectionSession.getBackendConnection().handleAutoCommit();
         this.connectionSession = connectionSession;
         this.sqlStatementSample = sqlStatementSample;
         Pattern pattern = sqlStatementSample instanceof UpdateStatement ? MULTI_UPDATE_STATEMENTS : MULTI_DELETE_STATEMENTS;
@@ -109,8 +109,9 @@ public final class MySQLMultiStatementsHandler implements TextProtocolBackendHan
     
     private ShardingSphereSQLParserEngine getSQLParserEngine() {
         MetaDataContexts metaDataContexts = ProxyContext.getInstance().getContextManager().getMetaDataContexts();
-        return new ShardingSphereSQLParserEngine(DatabaseTypeRegistry.getTrunkDatabaseTypeName(metaDataContexts.getMetaData(connectionSession.getSchemaName()).getResource().getDatabaseType()),
-                metaDataContexts.getGlobalRuleMetaData().findSingleRule(SQLParserRule.class).orElseThrow(() -> new IllegalStateException("SQLParserRule not found")).toParserConfiguration());
+        SQLParserRule sqlParserRule = metaDataContexts.getMetaData().getGlobalRuleMetaData().getSingleRule(SQLParserRule.class);
+        return sqlParserRule.getSQLParserEngine(
+                DatabaseTypeEngine.getTrunkDatabaseTypeName(metaDataContexts.getMetaData().getDatabases().get(connectionSession.getDatabaseName()).getProtocolType()));
     }
     
     private List<String> extractMultiStatements(final Pattern pattern, final String sql) {
@@ -120,21 +121,23 @@ public final class MySQLMultiStatementsHandler implements TextProtocolBackendHan
     
     private LogicSQL createLogicSQL(final String sql, final SQLStatement sqlStatement) {
         SQLStatementContext<?> sqlStatementContext = SQLStatementContextFactory.newInstance(
-                metaDataContexts.getMetaDataMap(), Collections.emptyList(), sqlStatement, connectionSession.getSchemaName());
+                metaDataContexts.getMetaData().getDatabases(), Collections.emptyList(), sqlStatement, connectionSession.getDatabaseName());
         return new LogicSQL(sqlStatementContext, sql, Collections.emptyList());
     }
     
     private ExecutionContext createExecutionContext(final LogicSQL logicSQL) {
-        SQLCheckEngine.check(logicSQL.getSqlStatementContext().getSqlStatement(), logicSQL.getParameters(),
-                metaDataContexts.getMetaData(connectionSession.getSchemaName()).getRuleMetaData().getRules(), connectionSession.getSchemaName(), metaDataContexts.getMetaDataMap(), null);
-        return kernelProcessor.generateExecutionContext(logicSQL, metaDataContexts.getMetaData(connectionSession.getSchemaName()), metaDataContexts.getProps());
+        SQLCheckEngine.check(logicSQL.getSqlStatementContext(), logicSQL.getParameters(),
+                metaDataContexts.getMetaData().getDatabases().get(connectionSession.getDatabaseName()).getRuleMetaData().getRules(),
+                connectionSession.getDatabaseName(), metaDataContexts.getMetaData().getDatabases(), null);
+        return kernelProcessor.generateExecutionContext(logicSQL, metaDataContexts.getMetaData().getDatabases().get(connectionSession.getDatabaseName()),
+                metaDataContexts.getMetaData().getGlobalRuleMetaData(), metaDataContexts.getMetaData().getProps());
     }
     
     @Override
     public ResponseHeader execute() throws SQLException {
-        Collection<ShardingSphereRule> rules = metaDataContexts.getMetaData(connectionSession.getSchemaName()).getRuleMetaData().getRules();
+        Collection<ShardingSphereRule> rules = metaDataContexts.getMetaData().getDatabases().get(connectionSession.getDatabaseName()).getRuleMetaData().getRules();
         DriverExecutionPrepareEngine<JDBCExecutionUnit, Connection> prepareEngine = new DriverExecutionPrepareEngine<>(
-                JDBCDriverType.STATEMENT, metaDataContexts.getProps().<Integer>getValue(ConfigurationPropertyKey.MAX_CONNECTIONS_SIZE_PER_QUERY),
+                JDBCDriverType.STATEMENT, metaDataContexts.getMetaData().getProps().<Integer>getValue(ConfigurationPropertyKey.MAX_CONNECTIONS_SIZE_PER_QUERY),
                 (JDBCBackendConnection) connectionSession.getBackendConnection(), (JDBCBackendStatement) connectionSession.getStatementManager(), new StatementOption(false), rules);
         ExecutionGroupContext<JDBCExecutionUnit> executionGroupContext = prepareEngine.prepare(anyExecutionContext.getRouteContext(), samplingExecutionUnit());
         for (ExecutionGroup<JDBCExecutionUnit> eachGroup : executionGroupContext.getInputGroups()) {
@@ -146,7 +149,7 @@ public final class MySQLMultiStatementsHandler implements TextProtocolBackendHan
     }
     
     private Collection<ExecutionUnit> samplingExecutionUnit() {
-        Collection<ExecutionUnit> result = new ArrayList<>(dataSourcesToExecutionUnits.size());
+        Collection<ExecutionUnit> result = new LinkedList<>();
         for (List<ExecutionUnit> each : dataSourcesToExecutionUnits.values()) {
             result.add(each.get(0));
         }
@@ -162,7 +165,7 @@ public final class MySQLMultiStatementsHandler implements TextProtocolBackendHan
     
     private UpdateResponseHeader executeBatchedStatements(final ExecutionGroupContext<JDBCExecutionUnit> executionGroupContext) throws SQLException {
         boolean isExceptionThrown = SQLExecutorExceptionHandler.isExceptionThrown();
-        DatabaseType databaseType = metaDataContexts.getMetaData(connectionSession.getSchemaName()).getResource().getDatabaseType();
+        DatabaseType databaseType = metaDataContexts.getMetaData().getDatabases().get(connectionSession.getDatabaseName()).getResource().getDatabaseType();
         JDBCExecutorCallback<int[]> callback = new BatchedJDBCExecutorCallback(databaseType, sqlStatementSample, isExceptionThrown);
         List<int[]> executeResults = jdbcExecutor.execute(executionGroupContext, callback);
         int updated = 0;
@@ -178,7 +181,7 @@ public final class MySQLMultiStatementsHandler implements TextProtocolBackendHan
     private static class BatchedJDBCExecutorCallback extends JDBCExecutorCallback<int[]> {
         
         BatchedJDBCExecutorCallback(final DatabaseType databaseType, final SQLStatement sqlStatement, final boolean isExceptionThrown) {
-            super(databaseType, sqlStatement, isExceptionThrown);
+            super(databaseType, sqlStatement, isExceptionThrown, ProxyContext.getInstance().getContextManager().getInstanceContext().getEventBusContext());
         }
         
         @Override

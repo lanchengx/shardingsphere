@@ -18,10 +18,8 @@
 package org.apache.shardingsphere.infra.datasource.pool.destroyer.detector;
 
 import org.apache.shardingsphere.spi.ShardingSphereServiceLoader;
-import org.apache.shardingsphere.spi.required.RequiredSPIRegistry;
-import org.apache.shardingsphere.spi.typed.TypedSPIRegistry;
-
-import java.util.Properties;
+import org.apache.shardingsphere.spi.type.required.RequiredSPIRegistry;
+import org.apache.shardingsphere.spi.type.typed.TypedSPIRegistry;
 
 /**
  * Data source pool active detector factory.
@@ -33,13 +31,13 @@ public final class DataSourcePoolActiveDetectorFactory {
     }
     
     /**
-     * Create new instance of data source pool active detector.
+     * Get instance of data source pool active detector.
      * 
      * @param dataSourceClassName data source class name
-     * @return new instance of data source pool active detector
+     * @return got instance
      */
-    public static DataSourcePoolActiveDetector newInstance(final String dataSourceClassName) {
-        return TypedSPIRegistry.findRegisteredService(DataSourcePoolActiveDetector.class, dataSourceClassName, new Properties())
-                .orElse(RequiredSPIRegistry.getRegisteredService(DataSourcePoolActiveDetector.class));
+    public static DataSourcePoolActiveDetector getInstance(final String dataSourceClassName) {
+        return TypedSPIRegistry.findRegisteredService(DataSourcePoolActiveDetector.class, dataSourceClassName)
+                .orElseGet(() -> RequiredSPIRegistry.getRegisteredService(DataSourcePoolActiveDetector.class));
     }
 }

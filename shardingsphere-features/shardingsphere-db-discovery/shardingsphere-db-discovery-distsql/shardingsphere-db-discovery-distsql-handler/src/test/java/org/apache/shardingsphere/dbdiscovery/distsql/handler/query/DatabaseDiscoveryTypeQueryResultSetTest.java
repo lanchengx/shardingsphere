@@ -20,23 +20,24 @@ package org.apache.shardingsphere.dbdiscovery.distsql.handler.query;
 import org.apache.shardingsphere.dbdiscovery.api.config.DatabaseDiscoveryRuleConfiguration;
 import org.apache.shardingsphere.dbdiscovery.api.config.rule.DatabaseDiscoveryDataSourceRuleConfiguration;
 import org.apache.shardingsphere.dbdiscovery.distsql.parser.statement.ShowDatabaseDiscoveryRulesStatement;
+import org.apache.shardingsphere.dbdiscovery.rule.DatabaseDiscoveryRule;
 import org.apache.shardingsphere.infra.config.RuleConfiguration;
 import org.apache.shardingsphere.infra.config.algorithm.ShardingSphereAlgorithmConfiguration;
 import org.apache.shardingsphere.infra.distsql.query.DistSQLResultSet;
-import org.apache.shardingsphere.infra.metadata.ShardingSphereMetaData;
+import org.apache.shardingsphere.infra.metadata.database.ShardingSphereDatabase;
+import org.apache.shardingsphere.infra.metadata.database.rule.ShardingSphereRuleMetaData;
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -45,16 +46,20 @@ public final class DatabaseDiscoveryTypeQueryResultSetTest {
     
     @Test
     public void assertGetRowData() {
-        ShardingSphereMetaData metaData = mock(ShardingSphereMetaData.class, RETURNS_DEEP_STUBS);
-        when(metaData.getRuleMetaData().findRuleConfiguration(any())).thenReturn(Collections.singleton(createRuleConfiguration()));
+        ShardingSphereDatabase database = mock(ShardingSphereDatabase.class, RETURNS_DEEP_STUBS);
+        DatabaseDiscoveryRule rule = mock(DatabaseDiscoveryRule.class);
+        when(rule.getConfiguration()).thenReturn(createRuleConfiguration());
+        ShardingSphereRuleMetaData databaseRuleMetaData = mock(ShardingSphereRuleMetaData.class);
+        when(database.getRuleMetaData()).thenReturn(databaseRuleMetaData);
+        when(databaseRuleMetaData.getSingleRule(DatabaseDiscoveryRule.class)).thenReturn(rule);
         DistSQLResultSet resultSet = new DatabaseDiscoveryTypeQueryResultSet();
-        resultSet.init(metaData, mock(ShowDatabaseDiscoveryRulesStatement.class));
+        resultSet.init(database, mock(ShowDatabaseDiscoveryRulesStatement.class));
         Collection<String> columnNames = resultSet.getColumnNames();
-        ArrayList<Object> actual = new ArrayList<>(resultSet.getRowData());
+        List<Object> actual = new ArrayList<>(resultSet.getRowData());
         assertThat(columnNames.size(), is(3));
         assertThat(actual.size(), is(3));
         assertThat(actual.get(0), is("test_name"));
-        assertThat(actual.get(1), is("MGR"));
+        assertThat(actual.get(1), is("MySQL.MGR"));
         assertThat(actual.get(2).toString(), is("{type_key=type_value}"));
     }
     
@@ -63,9 +68,8 @@ public final class DatabaseDiscoveryTypeQueryResultSetTest {
                 "ms-heartbeat", "test");
         Properties discoveryTypeProps = new Properties();
         discoveryTypeProps.put("type_key", "type_value");
-        ShardingSphereAlgorithmConfiguration shardingSphereAlgorithmConfig = new ShardingSphereAlgorithmConfiguration("MGR", discoveryTypeProps);
-        Map<String, ShardingSphereAlgorithmConfiguration> discoverTypes = new HashMap<>(1, 1);
-        discoverTypes.put("test_name", shardingSphereAlgorithmConfig);
+        ShardingSphereAlgorithmConfiguration shardingSphereAlgorithmConfig = new ShardingSphereAlgorithmConfiguration("MySQL.MGR", discoveryTypeProps);
+        Map<String, ShardingSphereAlgorithmConfiguration> discoverTypes = Collections.singletonMap("test_name", shardingSphereAlgorithmConfig);
         return new DatabaseDiscoveryRuleConfiguration(Collections.singleton(databaseDiscoveryDataSourceRuleConfig), Collections.emptyMap(), discoverTypes);
     }
 }

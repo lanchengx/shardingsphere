@@ -18,7 +18,7 @@
 package org.apache.shardingsphere.infra.database.type.dialect;
 
 import org.apache.shardingsphere.infra.database.metadata.dialect.OpenGaussDataSourceMetaData;
-import org.apache.shardingsphere.infra.database.type.DatabaseType;
+import org.apache.shardingsphere.infra.database.type.SchemaSupportedDatabaseType;
 import org.apache.shardingsphere.sql.parser.sql.common.constant.QuoteCharacter;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.SQLStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.tcl.CommitStatement;
@@ -26,18 +26,25 @@ import org.apache.shardingsphere.sql.parser.sql.common.statement.tcl.RollbackSta
 
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Optional;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
 
 /**
  * Database type of openGauss.
  */
-public final class OpenGaussDatabaseType implements DatabaseType {
+public final class OpenGaussDatabaseType implements SchemaSupportedDatabaseType {
     
-    @Override
-    public String getName() {
-        return "openGauss";
+    private static final Map<String, Collection<String>> SYSTEM_DATABASE_SCHEMA_MAP = new HashMap<>();
+    
+    private static final Collection<String> SYSTEM_SCHEMAS = new HashSet<>(Arrays.asList("information_schema", "pg_catalog",
+            "blockchain", "cstore", "db4ai", "dbe_perf", "dbe_pldebugger", "gaussdb", "oracle", "pkg_service", "snapshot", "sqladvisor", "dbe_pldeveloper", "pg_toast", "pkg_util"));
+    
+    static {
+        SYSTEM_DATABASE_SCHEMA_MAP.put("postgres", SYSTEM_SCHEMAS);
     }
     
     @Override
@@ -47,7 +54,7 @@ public final class OpenGaussDatabaseType implements DatabaseType {
     
     @Override
     public Collection<String> getJdbcUrlPrefixes() {
-        return Collections.singleton(String.format("jdbc:%s:", getName().toLowerCase()));
+        return Collections.singleton(String.format("jdbc:%s:", getType().toLowerCase()));
     }
     
     @Override
@@ -56,24 +63,34 @@ public final class OpenGaussDatabaseType implements DatabaseType {
     }
     
     @Override
-    public Optional<String> getDataSourceClassName() {
-        return Optional.of("org.opengauss.ds.PGSimpleDataSource");
-    }
-    
-    @Override
     public void handleRollbackOnly(final boolean rollbackOnly, final SQLStatement statement) throws SQLException {
         if (rollbackOnly && !(statement instanceof CommitStatement) && !(statement instanceof RollbackStatement)) {
-            throw new SQLFeatureNotSupportedException("ERROR:  current transaction is aborted, commands ignored until end of transaction block.");
+            throw new SQLFeatureNotSupportedException("Current transaction is aborted, commands ignored until end of transaction block.");
         }
     }
     
     @Override
-    public Collection<String> getSystemDatabases() {
-        return Collections.emptyList();
+    public Map<String, Collection<String>> getSystemDatabaseSchemaMap() {
+        return SYSTEM_DATABASE_SCHEMA_MAP;
     }
     
     @Override
     public Collection<String> getSystemSchemas() {
-        return Collections.emptyList();
+        return SYSTEM_SCHEMAS;
+    }
+    
+    @Override
+    public boolean isSchemaAvailable() {
+        return true;
+    }
+    
+    @Override
+    public String getDefaultSchema() {
+        return "public";
+    }
+    
+    @Override
+    public String getType() {
+        return "openGauss";
     }
 }

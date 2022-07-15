@@ -18,29 +18,30 @@
 package org.apache.shardingsphere.data.pipeline.core.job;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.shardingsphere.data.pipeline.api.PipelineJobAPIFactory;
 import org.apache.shardingsphere.data.pipeline.api.RuleAlteredJobAPI;
-import org.apache.shardingsphere.data.pipeline.api.check.consistency.DataConsistencyCheckResult;
-import org.apache.shardingsphere.data.pipeline.api.config.rulealtered.JobConfiguration;
+import org.apache.shardingsphere.data.pipeline.api.RuleAlteredJobAPIFactory;
+import org.apache.shardingsphere.data.pipeline.api.config.rulealtered.RuleAlteredJobConfiguration;
+import org.apache.shardingsphere.data.pipeline.api.config.rulealtered.yaml.RuleAlteredJobConfigurationSwapper;
 import org.apache.shardingsphere.data.pipeline.api.detect.RuleAlteredJobAlmostCompletedParameter;
 import org.apache.shardingsphere.data.pipeline.api.job.JobStatus;
 import org.apache.shardingsphere.data.pipeline.api.job.progress.JobProgress;
 import org.apache.shardingsphere.data.pipeline.api.pojo.JobInfo;
 import org.apache.shardingsphere.data.pipeline.scenario.rulealtered.RuleAlteredContext;
 import org.apache.shardingsphere.data.pipeline.scenario.rulealtered.RuleAlteredJobWorker;
-import org.apache.shardingsphere.data.pipeline.spi.lock.RowBasedJobLockAlgorithm;
-import org.apache.shardingsphere.data.pipeline.spi.lock.RuleBasedJobLockAlgorithm;
 import org.apache.shardingsphere.elasticjob.api.ShardingContext;
 import org.apache.shardingsphere.elasticjob.simple.job.SimpleJob;
-import org.apache.shardingsphere.infra.yaml.engine.YamlEngine;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentSkipListSet;
 
 @Slf4j
 public final class FinishedCheckJob implements SimpleJob {
     
-    private final RuleAlteredJobAPI ruleAlteredJobAPI = PipelineJobAPIFactory.getRuleAlteredJobAPI();
+    private final RuleAlteredJobAPI ruleAlteredJobAPI = RuleAlteredJobAPIFactory.getInstance();
+    
+    private final Set<String> onCheckJobIds = new ConcurrentSkipListSet<>();
     
     // TODO only one proxy node could do data consistency check in proxy cluster
     @Override
@@ -51,12 +52,18 @@ public final class FinishedCheckJob implements SimpleJob {
                 continue;
             }
             String jobId = jobInfo.getJobId();
+            if (onCheckJobIds.contains(jobId)) {
+                log.info("check not completed for job {}, ignore", jobId);
+                continue;
+            }
+            // TODO merge to CompletionDetectAlgorithm
             if (isNotAllowDataCheck(jobId)) {
                 continue;
             }
+            onCheckJobIds.add(jobId);
             try {
                 // TODO refactor: dispatch to different job types
-                JobConfiguration jobConfig = YamlEngine.unmarshal(jobInfo.getJobParameter(), JobConfiguration.class, true);
+                RuleAlteredJobConfiguration jobConfig = RuleAlteredJobConfigurationSwapper.swapToObject(jobInfo.getJobParameter());
                 RuleAlteredContext ruleAlteredContext = RuleAlteredJobWorker.createRuleAlteredContext(jobConfig);
                 if (null == ruleAlteredContext.getCompletionDetectAlgorithm()) {
                     log.info("completionDetector not configured, auto switch will not be enabled. You could query job progress and switch config manually with DistSQL.");
@@ -67,14 +74,10 @@ public final class FinishedCheckJob implements SimpleJob {
                     continue;
                 }
                 log.info("scaling job {} almost finished.", jobId);
-                RowBasedJobLockAlgorithm sourceWritingStopAlgorithm = ruleAlteredContext.getSourceWritingStopAlgorithm();
-                String schemaName = jobConfig.getWorkflowConfig().getSchemaName();
                 try {
-                    if (null != sourceWritingStopAlgorithm) {
-                        sourceWritingStopAlgorithm.lock(schemaName, jobId + "");
-                    }
+                    ruleAlteredJobAPI.stopClusterWriteDB(jobConfig);
                     if (!ruleAlteredJobAPI.isDataConsistencyCheckNeeded(jobConfig)) {
-                        log.info("dataConsistencyCheckAlgorithm is not configured, data consistency check is ignored.");
+                        log.info("DataConsistencyCalculatorAlgorithm is not configured, data consistency check is ignored.");
                         ruleAlteredJobAPI.switchClusterConfiguration(jobConfig);
                         continue;
                     }
@@ -82,52 +85,38 @@ public final class FinishedCheckJob implements SimpleJob {
                         log.error("data consistency check failed, job {}", jobId);
                         continue;
                     }
-                    RuleBasedJobLockAlgorithm checkoutLockAlgorithm = ruleAlteredContext.getCheckoutLockAlgorithm();
-                    switchClusterConfiguration(schemaName, jobConfig, checkoutLockAlgorithm);
+                    switchClusterConfiguration(jobConfig);
                 } finally {
-                    if (null != sourceWritingStopAlgorithm) {
-                        sourceWritingStopAlgorithm.releaseLock(schemaName, jobId + "");
-                    }
+                    ruleAlteredJobAPI.restoreClusterWriteDB(jobConfig);
                 }
                 log.info("job {} finished", jobId);
                 // CHECKSTYLE:OFF
             } catch (final Exception ex) {
                 // CHECKSTYLE:ON
                 log.error("scaling job {} finish check failed!", jobId, ex);
+            } finally {
+                onCheckJobIds.remove(jobId);
             }
         }
     }
     
     private boolean isNotAllowDataCheck(final String jobId) {
         Map<Integer, JobProgress> jobProgressMap = ruleAlteredJobAPI.getProgress(jobId);
-        boolean flag = false;
         for (JobProgress each : jobProgressMap.values()) {
             if (null == each || !JobStatus.EXECUTE_INCREMENTAL_TASK.equals(each.getStatus())) {
-                flag = true;
-                break;
+                return true;
             }
         }
-        return flag;
+        return false;
     }
     
-    private boolean dataConsistencyCheck(final JobConfiguration jobConfig) {
-        String jobId = jobConfig.getHandleConfig().getJobId();
+    private boolean dataConsistencyCheck(final RuleAlteredJobConfiguration jobConfig) {
+        String jobId = jobConfig.getJobId();
         log.info("dataConsistencyCheck for job {}", jobId);
-        Map<String, DataConsistencyCheckResult> checkResultMap = ruleAlteredJobAPI.dataConsistencyCheck(jobConfig);
-        return ruleAlteredJobAPI.aggregateDataConsistencyCheckResults(jobId, checkResultMap);
+        return ruleAlteredJobAPI.aggregateDataConsistencyCheckResults(jobId, ruleAlteredJobAPI.dataConsistencyCheck(jobConfig));
     }
     
-    private void switchClusterConfiguration(final String schemaName, final JobConfiguration jobConfig, final RuleBasedJobLockAlgorithm checkoutLockAlgorithm) {
-        String jobId = jobConfig.getHandleConfig().getJobId();
-        try {
-            if (null != checkoutLockAlgorithm) {
-                checkoutLockAlgorithm.lock(schemaName, jobId + "");
-            }
-            ruleAlteredJobAPI.switchClusterConfiguration(jobConfig);
-        } finally {
-            if (null != checkoutLockAlgorithm) {
-                checkoutLockAlgorithm.releaseLock(schemaName, jobId + "");
-            }
-        }
+    private void switchClusterConfiguration(final RuleAlteredJobConfiguration jobConfig) {
+        ruleAlteredJobAPI.switchClusterConfiguration(jobConfig);
     }
 }

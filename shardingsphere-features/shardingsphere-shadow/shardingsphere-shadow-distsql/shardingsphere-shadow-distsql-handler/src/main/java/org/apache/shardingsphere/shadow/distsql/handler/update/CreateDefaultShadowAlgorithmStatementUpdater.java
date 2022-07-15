@@ -21,7 +21,7 @@ import org.apache.shardingsphere.infra.config.RuleConfiguration;
 import org.apache.shardingsphere.infra.distsql.exception.DistSQLException;
 import org.apache.shardingsphere.infra.distsql.exception.rule.RequiredAlgorithmMissedException;
 import org.apache.shardingsphere.infra.distsql.update.RuleDefinitionCreateUpdater;
-import org.apache.shardingsphere.infra.metadata.ShardingSphereMetaData;
+import org.apache.shardingsphere.infra.metadata.database.ShardingSphereDatabase;
 import org.apache.shardingsphere.shadow.api.config.ShadowRuleConfiguration;
 import org.apache.shardingsphere.shadow.distsql.parser.statement.CreateDefaultShadowAlgorithmStatement;
 
@@ -45,15 +45,14 @@ public final class CreateDefaultShadowAlgorithmStatementUpdater implements RuleD
     }
     
     @Override
-    public void checkSQLStatement(final ShardingSphereMetaData metaData, final CreateDefaultShadowAlgorithmStatement sqlStatement, 
-                                  final ShadowRuleConfiguration currentRuleConfig) throws DistSQLException {
-        String schemaName = metaData.getName();
-        checkAlgorithmExist(schemaName, sqlStatement, currentRuleConfig);
+    public void checkSQLStatement(final ShardingSphereDatabase database,
+                                  final CreateDefaultShadowAlgorithmStatement sqlStatement, final ShadowRuleConfiguration currentRuleConfig) throws DistSQLException {
+        checkAlgorithmExist(database.getName(), sqlStatement, currentRuleConfig);
     }
     
-    private void checkAlgorithmExist(final String schemaName, final CreateDefaultShadowAlgorithmStatement sqlStatement, final ShadowRuleConfiguration currentRuleConfig) throws DistSQLException {
-        DistSQLException.predictionThrow(currentRuleConfig.getShadowAlgorithms().containsKey(sqlStatement.getAlgorithmName()),
-            () -> new RequiredAlgorithmMissedException(schemaName, Collections.singleton(sqlStatement.getAlgorithmName())));
+    private void checkAlgorithmExist(final String databaseName, final CreateDefaultShadowAlgorithmStatement sqlStatement, final ShadowRuleConfiguration currentRuleConfig) throws DistSQLException {
+        DistSQLException.predictionThrow(currentRuleConfig.getShadowAlgorithms().containsKey(sqlStatement.getAlgorithmName()), () -> new RequiredAlgorithmMissedException(
+                databaseName, Collections.singleton(sqlStatement.getAlgorithmName())));
     }
     
     @Override

@@ -24,7 +24,7 @@ import org.apache.shardingsphere.agent.metrics.api.constant.MetricIds;
 import org.apache.shardingsphere.agent.metrics.api.util.MetricsUtil;
 import org.apache.shardingsphere.agent.metrics.prometheus.wrapper.PrometheusWrapperFactory;
 import org.apache.shardingsphere.infra.datasource.props.DataSourcePropertiesCreator;
-import org.apache.shardingsphere.infra.metadata.ShardingSphereMetaData;
+import org.apache.shardingsphere.infra.metadata.database.ShardingSphereDatabase;
 import org.apache.shardingsphere.mode.metadata.MetaDataContexts;
 import org.apache.shardingsphere.proxy.backend.context.ProxyContext;
 
@@ -56,7 +56,7 @@ public final class MetaDataInfoCollector extends Collector {
     public List<MetricFamilySamples> collect() {
         List<MetricFamilySamples> result = new LinkedList<>();
         Optional<GaugeMetricFamily> metaDataInfo = FACTORY.createGaugeMetricFamily(MetricIds.METADATA_INFO);
-        if (metaDataInfo.isPresent() && MetricsUtil.isClassExisted(PROXY_CONTEXT_CLASS)) {
+        if (null != ProxyContext.getInstance().getContextManager() && metaDataInfo.isPresent() && MetricsUtil.isClassExisted(PROXY_CONTEXT_CLASS)) {
             collectProxy(metaDataInfo.get());
             result.add(metaDataInfo.get());
         }
@@ -65,21 +65,21 @@ public final class MetaDataInfoCollector extends Collector {
     
     private void collectProxy(final GaugeMetricFamily metricFamily) {
         MetaDataContexts metaDataContexts = ProxyContext.getInstance().getContextManager().getMetaDataContexts();
-        metricFamily.addMetric(Collections.singletonList(LOGIC_DB_COUNT), metaDataContexts.getMetaDataMap().size());
+        metricFamily.addMetric(Collections.singletonList(LOGIC_DB_COUNT), metaDataContexts.getMetaData().getDatabases().size());
         metricFamily.addMetric(Collections.singletonList(ACTUAL_DB_COUNT), getDatabaseNames(metaDataContexts).size());
     }
     
     private Collection<String> getDatabaseNames(final MetaDataContexts metaDataContexts) {
         Collection<String> result = new HashSet<>();
-        for (ShardingSphereMetaData each : metaDataContexts.getMetaDataMap().values()) {
+        for (ShardingSphereDatabase each : metaDataContexts.getMetaData().getDatabases().values()) {
             result.addAll(getDatabaseNames(each));
         }
         return result;
     }
     
-    private Collection<String> getDatabaseNames(final ShardingSphereMetaData metaData) {
+    private Collection<String> getDatabaseNames(final ShardingSphereDatabase database) {
         Collection<String> result = new HashSet<>();
-        for (DataSource each : metaData.getResource().getDataSources().values()) {
+        for (DataSource each : database.getResource().getDataSources().values()) {
             getDatabaseName(each).ifPresent(result::add);
         }
         return result;

@@ -17,9 +17,27 @@
 
 package org.apache.shardingsphere.infra.fixture;
 
-import org.apache.shardingsphere.infra.rule.identifier.scope.SchemaRule;
+import org.apache.shardingsphere.infra.config.RuleConfiguration;
+import org.apache.shardingsphere.infra.rule.identifier.scope.DatabaseRule;
+import org.apache.shardingsphere.infra.rule.identifier.type.DataSourceContainedRule;
 
-public final class TestShardingSphereRule implements SchemaRule {
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Map;
+
+import static org.mockito.Mockito.mock;
+
+public final class TestShardingSphereRule implements DatabaseRule, DataSourceContainedRule {
+    
+    @Override
+    public RuleConfiguration getConfiguration() {
+        return mock(RuleConfiguration.class);
+    }
+    
+    @Override
+    public Map<String, Collection<String>> getDataSourceMapper() {
+        return Collections.emptyMap();
+    }
     
     @Override
     public String getType() {

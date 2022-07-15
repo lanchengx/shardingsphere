@@ -30,6 +30,7 @@ import org.apache.shardingsphere.sql.parser.autogen.PostgreSQLStatementParser.Dr
 import org.apache.shardingsphere.sql.parser.autogen.PostgreSQLStatementParser.GrantContext;
 import org.apache.shardingsphere.sql.parser.autogen.PostgreSQLStatementParser.PrivilegeClauseContext;
 import org.apache.shardingsphere.sql.parser.autogen.PostgreSQLStatementParser.RevokeContext;
+import org.apache.shardingsphere.sql.parser.autogen.PostgreSQLStatementParser.ReassignOwnedContext;
 import org.apache.shardingsphere.sql.parser.sql.common.segment.generic.table.SimpleTableSegment;
 import org.apache.shardingsphere.sql.parser.sql.common.value.collection.CollectionValue;
 import org.apache.shardingsphere.sql.parser.sql.dialect.statement.postgresql.dcl.PostgreSQLAlterRoleStatement;
@@ -39,6 +40,7 @@ import org.apache.shardingsphere.sql.parser.sql.dialect.statement.postgresql.dcl
 import org.apache.shardingsphere.sql.parser.sql.dialect.statement.postgresql.dcl.PostgreSQLDropRoleStatement;
 import org.apache.shardingsphere.sql.parser.sql.dialect.statement.postgresql.dcl.PostgreSQLDropUserStatement;
 import org.apache.shardingsphere.sql.parser.sql.dialect.statement.postgresql.dcl.PostgreSQLGrantStatement;
+import org.apache.shardingsphere.sql.parser.sql.dialect.statement.postgresql.dcl.PostgreSQLReassignOwnedStatement;
 import org.apache.shardingsphere.sql.parser.sql.dialect.statement.postgresql.dcl.PostgreSQLRevokeStatement;
 
 import java.util.Collection;
@@ -58,16 +60,16 @@ public final class PostgreSQLDCLStatementSQLVisitor extends PostgreSQLStatementS
     @Override
     public ASTNode visitGrant(final GrantContext ctx) {
         PostgreSQLGrantStatement result = new PostgreSQLGrantStatement();
-        Optional<Collection<SimpleTableSegment>> tableSegmentOptional = null == ctx.privilegeClause() ? Optional.empty() : getTableFromPrivilegeClause(ctx.privilegeClause());
-        tableSegmentOptional.ifPresent(tableSegment -> result.getTables().addAll(tableSegment));
+        Optional<Collection<SimpleTableSegment>> tableSegment = null == ctx.privilegeClause() ? Optional.empty() : getTableFromPrivilegeClause(ctx.privilegeClause());
+        tableSegment.ifPresent(optional -> result.getTables().addAll(optional));
         return result;
     }
     
     @Override
     public ASTNode visitRevoke(final RevokeContext ctx) {
         PostgreSQLRevokeStatement result = new PostgreSQLRevokeStatement();
-        Optional<Collection<SimpleTableSegment>> tableSegmentOptional = null == ctx.privilegeClause() ? Optional.empty() : getTableFromPrivilegeClause(ctx.privilegeClause());
-        tableSegmentOptional.ifPresent(tableSegment -> result.getTables().addAll(tableSegment));
+        Optional<Collection<SimpleTableSegment>> tableSegment = null == ctx.privilegeClause() ? Optional.empty() : getTableFromPrivilegeClause(ctx.privilegeClause());
+        tableSegment.ifPresent(optional -> result.getTables().addAll(optional));
         return result;
     }
     
@@ -109,5 +111,10 @@ public final class PostgreSQLDCLStatementSQLVisitor extends PostgreSQLStatementS
     @Override
     public ASTNode visitDropRole(final DropRoleContext ctx) {
         return new PostgreSQLDropRoleStatement();
+    }
+    
+    @Override
+    public ASTNode visitReassignOwned(final ReassignOwnedContext ctx) {
+        return new PostgreSQLReassignOwnedStatement();
     }
 }

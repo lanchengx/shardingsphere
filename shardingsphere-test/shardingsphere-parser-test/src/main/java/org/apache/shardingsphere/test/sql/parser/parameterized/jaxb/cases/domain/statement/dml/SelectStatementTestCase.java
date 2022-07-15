@@ -27,7 +27,7 @@ import org.apache.shardingsphere.test.sql.parser.parameterized.jaxb.cases.domain
 import org.apache.shardingsphere.test.sql.parser.parameterized.jaxb.cases.domain.segment.impl.projection.ExpectedProjections;
 import org.apache.shardingsphere.test.sql.parser.parameterized.jaxb.cases.domain.segment.impl.table.ExpectedSimpleTable;
 import org.apache.shardingsphere.test.sql.parser.parameterized.jaxb.cases.domain.segment.impl.table.ExpectedTable;
-import org.apache.shardingsphere.test.sql.parser.parameterized.jaxb.cases.domain.segment.impl.union.ExpectedUnion;
+import org.apache.shardingsphere.test.sql.parser.parameterized.jaxb.cases.domain.segment.impl.union.ExpectedCombine;
 import org.apache.shardingsphere.test.sql.parser.parameterized.jaxb.cases.domain.segment.impl.where.ExpectedWhereClause;
 import org.apache.shardingsphere.test.sql.parser.parameterized.jaxb.cases.domain.segment.impl.window.ExpectedWindowClause;
 import org.apache.shardingsphere.test.sql.parser.parameterized.jaxb.cases.domain.segment.impl.with.ExpectedWithClause;
@@ -46,10 +46,10 @@ public final class SelectStatementTestCase extends SQLParserTestCase {
     
     @XmlElement(name = "from")
     private ExpectedTable from;
-
+    
     @XmlElement(name = "simple-table")
     private ExpectedSimpleTable simpleTable;
-
+    
     @XmlElement(name = "projections")
     private final ExpectedProjections projections = new ExpectedProjections();
     
@@ -70,15 +70,15 @@ public final class SelectStatementTestCase extends SQLParserTestCase {
     
     @XmlElement(name = "limit")
     private ExpectedLimitClause limitClause;
-
+    
     @XmlElement(name = "lock")
     private ExpectedLockClause lockClause;
     
     @XmlElement(name = "with")
     private ExpectedWithClause withClause;
     
-    @XmlElement(name = "union")
-    private List<ExpectedUnion> unions = new LinkedList<>();
+    @XmlElement(name = "combine")
+    private List<ExpectedCombine> combine = new LinkedList<>();
     
     @XmlElement(name = "model")
     private ExpectedModelClause modelClause;

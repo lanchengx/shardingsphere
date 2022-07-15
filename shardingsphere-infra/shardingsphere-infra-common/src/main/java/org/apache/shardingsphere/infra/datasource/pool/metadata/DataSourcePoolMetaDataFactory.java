@@ -20,10 +20,9 @@ package org.apache.shardingsphere.infra.datasource.pool.metadata;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.apache.shardingsphere.spi.ShardingSphereServiceLoader;
-import org.apache.shardingsphere.spi.typed.TypedSPIRegistry;
+import org.apache.shardingsphere.spi.type.typed.TypedSPIRegistry;
 
 import java.util.Optional;
-import java.util.Properties;
 
 /**
  * Data source pool meta data factory.
@@ -36,12 +35,12 @@ public final class DataSourcePoolMetaDataFactory {
     }
     
     /**
-     * Create new instance of data source pool meta data.
+     * Find instance of data source pool meta data.
      * 
      * @param dataSourceClassName data source class name
-     * @return new instance of data source pool meta data
+     * @return found instance
      */
-    public static Optional<DataSourcePoolMetaData> newInstance(final String dataSourceClassName) {
-        return TypedSPIRegistry.findRegisteredService(DataSourcePoolMetaData.class, dataSourceClassName, new Properties());
+    public static Optional<DataSourcePoolMetaData> findInstance(final String dataSourceClassName) {
+        return TypedSPIRegistry.findRegisteredService(DataSourcePoolMetaData.class, dataSourceClassName);
     }
 }

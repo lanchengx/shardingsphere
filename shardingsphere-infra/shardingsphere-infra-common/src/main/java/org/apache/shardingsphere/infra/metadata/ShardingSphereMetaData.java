@@ -18,97 +18,69 @@
 package org.apache.shardingsphere.infra.metadata;
 
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
-import org.apache.shardingsphere.infra.config.schema.SchemaConfiguration;
+import org.apache.shardingsphere.infra.config.props.ConfigurationProperties;
 import org.apache.shardingsphere.infra.database.type.DatabaseType;
-import org.apache.shardingsphere.infra.database.type.DatabaseTypeRecognizer;
-import org.apache.shardingsphere.infra.metadata.resource.CachedDatabaseMetaData;
-import org.apache.shardingsphere.infra.metadata.resource.DataSourcesMetaData;
-import org.apache.shardingsphere.infra.metadata.resource.ShardingSphereResource;
-import org.apache.shardingsphere.infra.metadata.rule.ShardingSphereRuleMetaData;
-import org.apache.shardingsphere.infra.metadata.schema.ShardingSphereSchema;
-import org.apache.shardingsphere.infra.rule.ShardingSphereRule;
+import org.apache.shardingsphere.infra.metadata.database.ShardingSphereDatabase;
+import org.apache.shardingsphere.infra.metadata.database.rule.ShardingSphereRuleMetaData;
+import org.apache.shardingsphere.infra.rule.identifier.type.ResourceHeldRule;
 
-import javax.sql.DataSource;
-import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Optional;
+import java.util.Properties;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * ShardingSphere meta data.
+ * Meta data contexts.
  */
-@RequiredArgsConstructor
 @Getter
 public final class ShardingSphereMetaData {
     
-    private final String name;
+    private final Map<String, ShardingSphereDatabase> databases;
     
-    private final ShardingSphereResource resource;
+    private final ShardingSphereRuleMetaData globalRuleMetaData;
     
-    private final ShardingSphereRuleMetaData ruleMetaData;
+    private final ConfigurationProperties props;
     
-    private final Map<String, ShardingSphereSchema> schemas;
+    public ShardingSphereMetaData() {
+        this(new LinkedHashMap<>(), new ShardingSphereRuleMetaData(Collections.emptyList()), new ConfigurationProperties(new Properties()));
+    }
+    
+    public ShardingSphereMetaData(final Map<String, ShardingSphereDatabase> databases, final ShardingSphereRuleMetaData globalRuleMetaData, final ConfigurationProperties props) {
+        this.databases = new ConcurrentHashMap<>(databases);
+        this.globalRuleMetaData = globalRuleMetaData;
+        this.props = props;
+    }
     
     /**
-     * Create ShardingSphere meta data.
+     * Add database.
      * 
      * @param databaseName database name
-     * @param schemas schemas
-     * @param schemaConfig schema configuration
-     * @param rules rules
-     * @param defaultDatabaseType default database type
-     * @return ShardingSphere meta data
+     * @param protocolType protocol database type
      * @throws SQLException SQL exception
      */
-    public static ShardingSphereMetaData create(final String databaseName, final Map<String, ShardingSphereSchema> schemas, final SchemaConfiguration schemaConfig, 
-                                                final Collection<ShardingSphereRule> rules, final DatabaseType defaultDatabaseType) throws SQLException {
-        ShardingSphereResource resource = createResource(schemaConfig.getDataSources(), defaultDatabaseType);
-        ShardingSphereRuleMetaData ruleMetaData = new ShardingSphereRuleMetaData(schemaConfig.getRuleConfigurations(), rules);
-        return new ShardingSphereMetaData(databaseName, resource, ruleMetaData, schemas);
-    }
-    
-    private static ShardingSphereResource createResource(final Map<String, DataSource> dataSourceMap, final DatabaseType defaultDatabaseType) throws SQLException {
-        DatabaseType databaseType = dataSourceMap.isEmpty() ? defaultDatabaseType : DatabaseTypeRecognizer.getDatabaseType(dataSourceMap.values());
-        DataSourcesMetaData dataSourcesMetaData = new DataSourcesMetaData(databaseType, dataSourceMap);
-        CachedDatabaseMetaData cachedDatabaseMetaData = createCachedDatabaseMetaData(dataSourceMap).orElse(null);
-        return new ShardingSphereResource(dataSourceMap, dataSourcesMetaData, cachedDatabaseMetaData, databaseType);
-    }
-    
-    private static Optional<CachedDatabaseMetaData> createCachedDatabaseMetaData(final Map<String, DataSource> dataSources) throws SQLException {
-        if (dataSources.isEmpty()) {
-            return Optional.empty();
-        }
-        try (Connection connection = dataSources.values().iterator().next().getConnection()) {
-            return Optional.of(new CachedDatabaseMetaData(connection.getMetaData()));
-        }
+    public void addDatabase(final String databaseName, final DatabaseType protocolType) throws SQLException {
+        ShardingSphereDatabase database = ShardingSphereDatabase.create(databaseName, protocolType);
+        databases.put(databaseName, database);
+        globalRuleMetaData.findRules(ResourceHeldRule.class).forEach(each -> each.addResource(database));
     }
     
     /**
-     * Judge whether is completed.
+     * Drop database.
      *
-     * @return is completed or not
+     * @param databaseName database name
      */
-    public boolean isComplete() {
-        return !ruleMetaData.getRules().isEmpty() && !resource.getDataSources().isEmpty();
+    public void dropDatabase(final String databaseName) {
+        closeResources(databases.remove(databaseName));
     }
     
-    /**
-     * Determine whether there is a data source.
-     *
-     * @return has datasource or not
-     */
-    public boolean hasDataSource() {
-        return !resource.getDataSources().isEmpty();
-    }
-    
-    /**
-     * Get schema.
-     * 
-     * @return sharding sphere schema
-     */
-    public ShardingSphereSchema getSchema() {
-        return schemas.get(name);
+    private void closeResources(final ShardingSphereDatabase database) {
+        if (null != database.getResource()) {
+            database.getResource().getDataSources().values().forEach(each -> database.getResource().close(each));
+        }
+        String databaseName = database.getName();
+        globalRuleMetaData.findRules(ResourceHeldRule.class).forEach(each -> each.closeStaleResource(databaseName));
+        database.getRuleMetaData().findRules(ResourceHeldRule.class).forEach(each -> each.closeStaleResource(databaseName));
     }
 }

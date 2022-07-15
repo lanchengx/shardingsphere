@@ -18,21 +18,25 @@
 package org.apache.shardingsphere.mode.manager.cluster.coordinator.registry.metadata.subscriber;
 
 import com.google.common.eventbus.Subscribe;
+import org.apache.shardingsphere.infra.eventbus.EventBusContext;
+import org.apache.shardingsphere.infra.metadata.database.schema.event.AddSchemaEvent;
+import org.apache.shardingsphere.infra.metadata.database.schema.event.AlterSchemaEvent;
+import org.apache.shardingsphere.infra.metadata.database.schema.event.DropIndexEvent;
+import org.apache.shardingsphere.infra.metadata.database.schema.event.DropSchemaEvent;
+import org.apache.shardingsphere.infra.metadata.database.schema.event.SchemaAlteredEvent;
+import org.apache.shardingsphere.mode.metadata.persist.service.DatabaseMetaDataPersistService;
 import org.apache.shardingsphere.mode.repository.cluster.ClusterPersistRepository;
-import org.apache.shardingsphere.mode.metadata.persist.service.SchemaMetaDataPersistService;
-import org.apache.shardingsphere.infra.eventbus.ShardingSphereEventBus;
-import org.apache.shardingsphere.infra.metadata.schema.event.SchemaAlteredEvent;
 
 /**
  * Schema meta data registry subscriber.
  */
 public final class SchemaMetaDataRegistrySubscriber {
     
-    private final SchemaMetaDataPersistService persistService;
+    private final DatabaseMetaDataPersistService persistService;
     
-    public SchemaMetaDataRegistrySubscriber(final ClusterPersistRepository repository) {
-        persistService = new SchemaMetaDataPersistService(repository);
-        ShardingSphereEventBus.getInstance().register(this);
+    public SchemaMetaDataRegistrySubscriber(final ClusterPersistRepository repository, final EventBusContext eventBusContext) {
+        persistService = new DatabaseMetaDataPersistService(repository);
+        eventBusContext.register(this);
     }
     
     /**
@@ -42,7 +46,47 @@ public final class SchemaMetaDataRegistrySubscriber {
      */
     @Subscribe
     public void update(final SchemaAlteredEvent event) {
-        event.getAlteredTables().forEach(each -> persistService.persist(event.getSchemaName(), each));
-        event.getDroppedTables().forEach(each -> persistService.delete(event.getSchemaName(), each));
+        event.getAlteredTables().forEach(each -> persistService.persistTable(event.getDatabaseName(), event.getSchemaName(), each));
+        event.getDroppedTables().forEach(each -> persistService.deleteTable(event.getDatabaseName(), event.getSchemaName(), each));
+    }
+    
+    /**
+     * Add schema.
+     *
+     * @param event schema add event
+     */
+    @Subscribe
+    public void addSchema(final AddSchemaEvent event) {
+        persistService.persistSchema(event.getDatabaseName(), event.getSchemaName());
+    }
+    
+    /**
+     * Alter schema.
+     *
+     * @param event schema alter event
+     */
+    @Subscribe
+    public void alterSchema(final AlterSchemaEvent event) {
+        persistService.persistMetaData(event.getDatabaseName(), event.getRenameSchemaName(), event.getSchema());
+        persistService.deleteSchema(event.getDatabaseName(), event.getSchemaName());
+    }
+    
+    /**
+     * Drop schema.
+     *
+     * @param event schema drop event
+     */
+    @Subscribe
+    public void dropSchema(final DropSchemaEvent event) {
+        event.getSchemaNames().forEach(each -> persistService.deleteSchema(event.getDatabaseName(), each));
+    }
+    
+    /**
+     * Drop index.
+     * @param event drop index event
+     */
+    @Subscribe
+    public void dropIndex(final DropIndexEvent event) {
+        event.getSchemaAlteredEvents().forEach(this::update);
     }
 }

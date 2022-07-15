@@ -17,7 +17,6 @@
 
 package org.apache.shardingsphere.proxy.frontend.reactive.mysql.command.query.text.fieldlist;
 
-import com.google.common.base.Preconditions;
 import io.vertx.core.Future;
 import org.apache.shardingsphere.db.protocol.mysql.constant.MySQLBinaryColumnType;
 import org.apache.shardingsphere.db.protocol.mysql.constant.MySQLConstants;
@@ -27,21 +26,20 @@ import org.apache.shardingsphere.db.protocol.mysql.packet.generic.MySQLEofPacket
 import org.apache.shardingsphere.db.protocol.packet.DatabasePacket;
 import org.apache.shardingsphere.infra.binder.SQLStatementContextFactory;
 import org.apache.shardingsphere.infra.binder.statement.SQLStatementContext;
-import org.apache.shardingsphere.infra.database.type.DatabaseTypeRegistry;
-import org.apache.shardingsphere.infra.parser.ShardingSphereSQLParserEngine;
+import org.apache.shardingsphere.infra.database.type.DatabaseTypeEngine;
 import org.apache.shardingsphere.mode.metadata.MetaDataContexts;
 import org.apache.shardingsphere.parser.rule.SQLParserRule;
 import org.apache.shardingsphere.proxy.backend.communication.DatabaseCommunicationEngineFactory;
 import org.apache.shardingsphere.proxy.backend.communication.vertx.VertxDatabaseCommunicationEngine;
 import org.apache.shardingsphere.proxy.backend.context.ProxyContext;
 import org.apache.shardingsphere.proxy.backend.session.ConnectionSession;
+import org.apache.shardingsphere.proxy.frontend.mysql.command.ServerStatusFlagCalculator;
 import org.apache.shardingsphere.proxy.frontend.reactive.command.executor.ReactiveCommandExecutor;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.SQLStatement;
 
 import java.sql.SQLException;
 import java.util.Collection;
 import java.util.LinkedList;
-import java.util.Optional;
 
 /**
  * Reactive COM_FIELD_LIST packet executor for MySQL.
@@ -52,7 +50,9 @@ public final class ReactiveMySQLComFieldListPacketExecutor implements ReactiveCo
     
     private final MySQLComFieldListPacket packet;
     
-    private final String schemaName;
+    private final ConnectionSession connectionSession;
+    
+    private final String databaseName;
     
     private final VertxDatabaseCommunicationEngine databaseCommunicationEngine;
     
@@ -62,15 +62,14 @@ public final class ReactiveMySQLComFieldListPacketExecutor implements ReactiveCo
     
     public ReactiveMySQLComFieldListPacketExecutor(final MySQLComFieldListPacket packet, final ConnectionSession connectionSession) {
         this.packet = packet;
-        schemaName = connectionSession.getDefaultSchemaName();
-        String sql = String.format(SQL, packet.getTable(), schemaName);
+        this.connectionSession = connectionSession;
+        databaseName = connectionSession.getDefaultDatabaseName();
+        String sql = String.format(SQL, packet.getTable(), databaseName);
         MetaDataContexts metaDataContexts = ProxyContext.getInstance().getContextManager().getMetaDataContexts();
-        Optional<SQLParserRule> sqlParserRule = metaDataContexts.getGlobalRuleMetaData().findSingleRule(SQLParserRule.class);
-        Preconditions.checkState(sqlParserRule.isPresent());
-        ShardingSphereSQLParserEngine sqlStatementParserEngine = new ShardingSphereSQLParserEngine(
-                DatabaseTypeRegistry.getTrunkDatabaseTypeName(metaDataContexts.getMetaData(schemaName).getResource().getDatabaseType()), sqlParserRule.get().toParserConfiguration());
-        SQLStatement sqlStatement = sqlStatementParserEngine.parse(sql, false);
-        SQLStatementContext<?> sqlStatementContext = SQLStatementContextFactory.newInstance(metaDataContexts.getMetaDataMap(), sqlStatement, schemaName);
+        SQLParserRule sqlParserRule = metaDataContexts.getMetaData().getGlobalRuleMetaData().getSingleRule(SQLParserRule.class);
+        SQLStatement sqlStatement = sqlParserRule.getSQLParserEngine(
+                DatabaseTypeEngine.getTrunkDatabaseTypeName(metaDataContexts.getMetaData().getDatabases().get(databaseName).getProtocolType())).parse(sql, false);
+        SQLStatementContext<?> sqlStatementContext = SQLStatementContextFactory.newInstance(metaDataContexts.getMetaData().getDatabases(), sqlStatement, databaseName);
         databaseCommunicationEngine = DatabaseCommunicationEngineFactory.getInstance().newTextProtocolInstance(sqlStatementContext, sql, connectionSession.getBackendConnection());
         characterSet = connectionSession.getAttributeMap().attr(MySQLConstants.MYSQL_CHARACTER_SET_ATTRIBUTE_KEY).get().getId();
     }
@@ -91,9 +90,9 @@ public final class ReactiveMySQLComFieldListPacketExecutor implements ReactiveCo
         while (databaseCommunicationEngine.next()) {
             String columnName = databaseCommunicationEngine.getQueryResponseRow().getCells().iterator().next().getData().toString();
             result.add(new MySQLColumnDefinition41Packet(
-                    ++currentSequenceId, characterSet, schemaName, packet.getTable(), packet.getTable(), columnName, columnName, 100, MySQLBinaryColumnType.MYSQL_TYPE_VARCHAR, 0, true));
+                    ++currentSequenceId, characterSet, databaseName, packet.getTable(), packet.getTable(), columnName, columnName, 100, MySQLBinaryColumnType.MYSQL_TYPE_VARCHAR, 0, true));
         }
-        result.add(new MySQLEofPacket(++currentSequenceId));
+        result.add(new MySQLEofPacket(++currentSequenceId, ServerStatusFlagCalculator.calculateFor(connectionSession)));
         return result;
     }
 }

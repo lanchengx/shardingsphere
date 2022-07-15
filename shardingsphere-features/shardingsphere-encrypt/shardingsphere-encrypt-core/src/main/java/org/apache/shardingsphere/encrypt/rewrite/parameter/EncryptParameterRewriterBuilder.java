@@ -18,8 +18,8 @@
 package org.apache.shardingsphere.encrypt.rewrite.parameter;
 
 import lombok.RequiredArgsConstructor;
+import org.apache.shardingsphere.encrypt.rewrite.aware.DatabaseNameAware;
 import org.apache.shardingsphere.encrypt.rewrite.aware.EncryptConditionsAware;
-import org.apache.shardingsphere.encrypt.rewrite.aware.SchemaNameAware;
 import org.apache.shardingsphere.encrypt.rewrite.condition.EncryptCondition;
 import org.apache.shardingsphere.encrypt.rewrite.parameter.rewriter.EncryptAssignmentParameterRewriter;
 import org.apache.shardingsphere.encrypt.rewrite.parameter.rewriter.EncryptInsertOnDuplicateKeyUpdateValueParameterRewriter;
@@ -28,13 +28,14 @@ import org.apache.shardingsphere.encrypt.rewrite.parameter.rewriter.EncryptPredi
 import org.apache.shardingsphere.encrypt.rule.EncryptRule;
 import org.apache.shardingsphere.encrypt.rule.aware.EncryptRuleAware;
 import org.apache.shardingsphere.infra.binder.statement.SQLStatementContext;
-import org.apache.shardingsphere.infra.metadata.schema.ShardingSphereSchema;
+import org.apache.shardingsphere.infra.metadata.database.schema.decorator.model.ShardingSphereSchema;
 import org.apache.shardingsphere.infra.rewrite.parameter.rewriter.ParameterRewriter;
 import org.apache.shardingsphere.infra.rewrite.parameter.rewriter.ParameterRewriterBuilder;
 import org.apache.shardingsphere.infra.rewrite.sql.token.generator.aware.SchemaMetaDataAware;
 
 import java.util.Collection;
 import java.util.LinkedList;
+import java.util.Map;
 
 /**
  * Parameter rewriter builder for encrypt.
@@ -44,9 +45,9 @@ public final class EncryptParameterRewriterBuilder implements ParameterRewriterB
     
     private final EncryptRule encryptRule;
     
-    private final String schemaName;
+    private final String databaseName;
     
-    private final ShardingSphereSchema schema;
+    private final Map<String, ShardingSphereSchema> schemas;
     
     private final SQLStatementContext<?> sqlStatementContext;
     
@@ -73,7 +74,7 @@ public final class EncryptParameterRewriterBuilder implements ParameterRewriterB
     @SuppressWarnings("rawtypes")
     private void setUpParameterRewriter(final ParameterRewriter toBeAddedParameterRewriter) {
         if (toBeAddedParameterRewriter instanceof SchemaMetaDataAware) {
-            ((SchemaMetaDataAware) toBeAddedParameterRewriter).setSchema(schema);
+            ((SchemaMetaDataAware) toBeAddedParameterRewriter).setSchemas(schemas);
         }
         if (toBeAddedParameterRewriter instanceof EncryptRuleAware) {
             ((EncryptRuleAware) toBeAddedParameterRewriter).setEncryptRule(encryptRule);
@@ -81,8 +82,8 @@ public final class EncryptParameterRewriterBuilder implements ParameterRewriterB
         if (toBeAddedParameterRewriter instanceof EncryptConditionsAware) {
             ((EncryptConditionsAware) toBeAddedParameterRewriter).setEncryptConditions(encryptConditions);
         }
-        if (toBeAddedParameterRewriter instanceof SchemaNameAware) {
-            ((SchemaNameAware) toBeAddedParameterRewriter).setSchemaName(schemaName);
+        if (toBeAddedParameterRewriter instanceof DatabaseNameAware) {
+            ((DatabaseNameAware) toBeAddedParameterRewriter).setDatabaseName(databaseName);
         }
     }
 }

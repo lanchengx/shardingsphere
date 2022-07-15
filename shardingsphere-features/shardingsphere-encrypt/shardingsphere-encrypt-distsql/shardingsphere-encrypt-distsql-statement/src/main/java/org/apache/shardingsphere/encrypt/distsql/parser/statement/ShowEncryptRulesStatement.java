@@ -19,7 +19,7 @@ package org.apache.shardingsphere.encrypt.distsql.parser.statement;
 
 import lombok.Getter;
 import org.apache.shardingsphere.distsql.parser.statement.rql.show.ShowRulesStatement;
-import org.apache.shardingsphere.sql.parser.sql.common.segment.generic.SchemaSegment;
+import org.apache.shardingsphere.sql.parser.sql.common.segment.generic.DatabaseSegment;
 
 /**
  * Show encrypt rules statement.
@@ -29,8 +29,8 @@ public final class ShowEncryptRulesStatement extends ShowRulesStatement {
     
     private final String tableName;
     
-    public ShowEncryptRulesStatement(final String tableName, final SchemaSegment schema) {
-        super(schema);
+    public ShowEncryptRulesStatement(final String tableName, final DatabaseSegment database) {
+        super(database);
         this.tableName = tableName;
     }
 }

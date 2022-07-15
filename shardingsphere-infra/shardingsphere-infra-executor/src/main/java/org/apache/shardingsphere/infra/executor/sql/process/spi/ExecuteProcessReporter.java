@@ -18,35 +18,49 @@
 package org.apache.shardingsphere.infra.executor.sql.process.spi;
 
 import org.apache.shardingsphere.infra.binder.LogicSQL;
+import org.apache.shardingsphere.infra.eventbus.EventBusContext;
 import org.apache.shardingsphere.infra.executor.kernel.model.ExecutionGroupContext;
 import org.apache.shardingsphere.infra.executor.sql.execute.engine.SQLExecutionUnit;
 import org.apache.shardingsphere.infra.executor.sql.process.model.ExecuteProcessConstants;
+import org.apache.shardingsphere.spi.annotation.SingletonSPI;
+import org.apache.shardingsphere.spi.type.optional.OptionalSPI;
 
 /**
  * Execute process report.
  */
-public interface ExecuteProcessReporter {
+@SingletonSPI
+public interface ExecuteProcessReporter extends OptionalSPI {
     
     /**
      * Report the summary of this task.
      * @param logicSQL logic SQL
      * @param executionGroupContext execution group context
      * @param constants constants
+     * @param eventBusContext event bus context                 
      */
-    void report(LogicSQL logicSQL, ExecutionGroupContext<? extends SQLExecutionUnit> executionGroupContext, ExecuteProcessConstants constants);
+    void report(LogicSQL logicSQL, ExecutionGroupContext<? extends SQLExecutionUnit> executionGroupContext, ExecuteProcessConstants constants, EventBusContext eventBusContext);
     
     /**
      * Report a unit of this task.
      * @param executionID execution ID
      * @param executionUnit execution unit
      * @param constants constants
+     * @param eventBusContext event bus context                    
      */
-    void report(String executionID, SQLExecutionUnit executionUnit, ExecuteProcessConstants constants);
+    void report(String executionID, SQLExecutionUnit executionUnit, ExecuteProcessConstants constants, EventBusContext eventBusContext);
     
     /**
      * Report this task on completion.
      * @param executionID execution ID
      * @param constants constants
+     * @param eventBusContext event bus context                  
      */
-    void report(String executionID, ExecuteProcessConstants constants);
+    void report(String executionID, ExecuteProcessConstants constants, EventBusContext eventBusContext);
+    
+    /**
+     * Report clean the task.
+     * 
+     * @param executionID execution ID
+     */
+    void reportClean(String executionID);
 }

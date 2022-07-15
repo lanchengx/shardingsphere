@@ -5,12 +5,16 @@ weight = 12
 chapter = true
 +++
 
-## SQLChecker
+## SPI Interface
 
 | *SPI Name*             | *Description*     |
 | ---------------------- | ----------------- |
 | SQLChecker             | SQL checker       |
 
-| *Implementation Class* | *Description*     |
-| ---------------------- | ----------------- |
-| AuthorityChecker       | Authority checker |
+## Sample
+### SQLChecker
+
+| *Implementation Class* | *Description*          |
+| ---------------------- | ---------------------- |
+| AuthorityChecker       | Authority checker      |
+| ShardingAuditChecker   | Sharding audit checker |

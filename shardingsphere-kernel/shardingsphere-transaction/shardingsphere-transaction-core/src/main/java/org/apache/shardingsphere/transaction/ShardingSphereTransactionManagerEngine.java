@@ -20,11 +20,10 @@ package org.apache.shardingsphere.transaction;
 import com.google.common.base.Preconditions;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.shardingsphere.infra.database.type.DatabaseType;
-import org.apache.shardingsphere.spi.ShardingSphereServiceLoader;
 import org.apache.shardingsphere.transaction.core.ResourceDataSource;
 import org.apache.shardingsphere.transaction.core.TransactionType;
-import org.apache.shardingsphere.transaction.rule.TransactionRule;
 import org.apache.shardingsphere.transaction.spi.ShardingSphereTransactionManager;
+import org.apache.shardingsphere.transaction.spi.ShardingSphereTransactionManagerFactory;
 
 import javax.sql.DataSource;
 import java.util.Collection;
@@ -41,19 +40,15 @@ public final class ShardingSphereTransactionManagerEngine {
     
     private final Map<TransactionType, ShardingSphereTransactionManager> transactionManagers = new EnumMap<>(TransactionType.class);
     
-    static {
-        ShardingSphereServiceLoader.register(ShardingSphereTransactionManager.class);
-    }
-    
     public ShardingSphereTransactionManagerEngine() {
         loadTransactionManager();
     }
     
     private void loadTransactionManager() {
-        for (ShardingSphereTransactionManager each : ShardingSphereServiceLoader.newServiceInstances(ShardingSphereTransactionManager.class)) {
+        for (ShardingSphereTransactionManager each : ShardingSphereTransactionManagerFactory.getAllInstances()) {
             if (transactionManagers.containsKey(each.getTransactionType())) {
                 log.warn("Find more than one {} transaction manager implementation class, use `{}` now",
-                    each.getTransactionType(), transactionManagers.get(each.getTransactionType()).getClass().getName());
+                        each.getTransactionType(), transactionManagers.get(each.getTransactionType()).getClass().getName());
                 continue;
             }
             transactionManagers.put(each.getTransactionType(), each);
@@ -65,10 +60,10 @@ public final class ShardingSphereTransactionManagerEngine {
      *
      * @param databaseType database type
      * @param dataSourceMap data source map
-     * @param transactionRule transaction rule
+     * @param providerType transaction manager provider type
      */
-    public void init(final DatabaseType databaseType, final Map<String, DataSource> dataSourceMap, final TransactionRule transactionRule) {
-        transactionManagers.forEach((key, value) -> value.init(databaseType, getResourceDataSources(dataSourceMap), transactionRule));
+    public void init(final DatabaseType databaseType, final Map<String, DataSource> dataSourceMap, final String providerType) {
+        transactionManagers.forEach((key, value) -> value.init(databaseType, getResourceDataSources(dataSourceMap), providerType));
     }
     
     private Collection<ResourceDataSource> getResourceDataSources(final Map<String, DataSource> dataSourceMap) {

@@ -18,6 +18,7 @@
 package org.apache.shardingsphere.driver.executor.callback;
 
 import org.apache.shardingsphere.infra.database.type.DatabaseType;
+import org.apache.shardingsphere.infra.eventbus.EventBusContext;
 import org.apache.shardingsphere.infra.executor.sql.execute.engine.ConnectionMode;
 import org.apache.shardingsphere.infra.executor.sql.execute.engine.driver.jdbc.JDBCExecutorCallback;
 import org.apache.shardingsphere.infra.executor.sql.execute.result.query.QueryResult;
@@ -35,14 +36,14 @@ import java.util.Optional;
  */
 public abstract class ExecuteQueryCallback extends JDBCExecutorCallback<QueryResult> {
     
-    protected ExecuteQueryCallback(final DatabaseType databaseType, final SQLStatement sqlStatement, final boolean isExceptionThrown) {
-        super(databaseType, sqlStatement, isExceptionThrown);
+    protected ExecuteQueryCallback(final DatabaseType databaseType, final SQLStatement sqlStatement, final boolean isExceptionThrown, final EventBusContext eventBusContext) {
+        super(databaseType, sqlStatement, isExceptionThrown, eventBusContext);
     }
     
     @Override
     protected final QueryResult executeSQL(final String sql, final Statement statement, final ConnectionMode connectionMode) throws SQLException {
         ResultSet resultSet = executeQuery(sql, statement);
-        return ConnectionMode.MEMORY_STRICTLY == connectionMode ? new JDBCStreamQueryResult(resultSet) : new JDBCMemoryQueryResult(resultSet);
+        return ConnectionMode.MEMORY_STRICTLY == connectionMode ? new JDBCStreamQueryResult(resultSet) : new JDBCMemoryQueryResult(resultSet, getDatabaseType());
     }
     
     @Override

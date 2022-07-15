@@ -17,6 +17,8 @@
 
 package org.apache.shardingsphere.proxy.backend.text.admin.postgresql.executor;
 
+import org.apache.shardingsphere.infra.database.type.DatabaseTypeEngine;
+import org.apache.shardingsphere.infra.metadata.database.ShardingSphereDatabase;
 import org.apache.shardingsphere.proxy.backend.context.ProxyContext;
 import org.apache.shardingsphere.proxy.backend.session.ConnectionSession;
 import org.apache.shardingsphere.proxy.backend.text.admin.executor.AbstractDatabaseMetadataExecutor;
@@ -51,18 +53,20 @@ public final class SelectTableExecutor extends DefaultDatabaseMetadataExecutor {
     }
     
     @Override
-    protected void initSchemaData(final String schemaName) {
-        tableNames = new ArrayList<>(ProxyContext.getInstance().getMetaData(schemaName).getSchema().getAllTableNames());
+    protected void initDatabaseData(final String databaseName) {
+        ShardingSphereDatabase database = ProxyContext.getInstance().getDatabase(databaseName);
+        String schemaName = DatabaseTypeEngine.getDefaultSchemaName(database.getResource().getDatabaseType(), databaseName);
+        tableNames = new ArrayList<>(database.getSchemas().get(schemaName).getAllTableNames());
     }
     
     @Override
-    protected List<String> getSchemaNames(final ConnectionSession connectionSession) {
-        Collection<String> schemaNames = ProxyContext.getInstance().getAllSchemaNames().stream().filter(each -> hasAuthority(each, connectionSession.getGrantee())).collect(Collectors.toList());
-        return schemaNames.stream().filter(AbstractDatabaseMetadataExecutor::hasDatasource).collect(Collectors.toList());
+    protected List<String> getDatabaseNames(final ConnectionSession connectionSession) {
+        Collection<String> databaseNames = ProxyContext.getInstance().getAllDatabaseNames().stream().filter(each -> hasAuthority(each, connectionSession.getGrantee())).collect(Collectors.toList());
+        return databaseNames.stream().filter(AbstractDatabaseMetadataExecutor::hasDataSource).collect(Collectors.toList());
     }
     
     @Override
-    protected void rowPostProcessing(final String schemaName, final Map<String, Object> rowMap, final Map<String, String> aliasMap) {
+    protected void rowPostProcessing(final String databaseName, final Map<String, Object> rowMap, final Map<String, String> aliasMap) {
         if (actualTableName.isEmpty()) {
             actualTableName = aliasMap.getOrDefault(REL_NAME, aliasMap.getOrDefault(TABLE_NAME, aliasMap.getOrDefault(NAME, aliasMap.getOrDefault(REF_NAME, ""))));
         }

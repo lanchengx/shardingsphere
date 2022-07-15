@@ -18,16 +18,16 @@
 package org.apache.shardingsphere.sharding.distsql.query;
 
 import org.apache.shardingsphere.infra.config.algorithm.ShardingSphereAlgorithmConfiguration;
-import org.apache.shardingsphere.infra.metadata.ShardingSphereMetaData;
+import org.apache.shardingsphere.infra.metadata.database.ShardingSphereDatabase;
 import org.apache.shardingsphere.sharding.api.config.ShardingRuleConfiguration;
 import org.apache.shardingsphere.sharding.distsql.handler.query.ShardingKeyGeneratorsQueryResultSet;
 import org.apache.shardingsphere.sharding.distsql.parser.statement.ShowShardingKeyGeneratorsStatement;
+import org.apache.shardingsphere.sharding.rule.ShardingRule;
 import org.junit.Test;
 
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.Properties;
 
 import static org.hamcrest.CoreMatchers.is;
@@ -40,22 +40,22 @@ public final class ShardingKeyGeneratorsQueryResultSetTest {
     
     @Test
     public void assertGetRowData() {
-        ShardingSphereMetaData metaData = mock(ShardingSphereMetaData.class, RETURNS_DEEP_STUBS);
-        when(metaData.getRuleMetaData().findRuleConfiguration(ShardingRuleConfiguration.class)).thenReturn(createRuleConfigurations());
+        ShardingSphereDatabase database = mock(ShardingSphereDatabase.class, RETURNS_DEEP_STUBS);
+        ShardingRule rule = mock(ShardingRule.class);
+        when(rule.getConfiguration()).thenReturn(createRuleConfiguration());
+        when(database.getRuleMetaData().findSingleRule(ShardingRule.class)).thenReturn(Optional.of(rule));
         ShardingKeyGeneratorsQueryResultSet resultSet = new ShardingKeyGeneratorsQueryResultSet();
-        resultSet.init(metaData, mock(ShowShardingKeyGeneratorsStatement.class));
+        resultSet.init(database, mock(ShowShardingKeyGeneratorsStatement.class));
         List<Object> actual = new ArrayList<>(resultSet.getRowData());
         assertThat(actual.size(), is(3));
         assertThat(actual.get(0), is("snowflake"));
         assertThat(actual.get(1), is("SNOWFLAKE"));
-        assertThat(actual.get(2).toString(), is("{work-id=123}"));
+        assertThat(actual.get(2).toString(), is("{}"));
     }
     
-    private Collection<ShardingRuleConfiguration> createRuleConfigurations() {
+    private ShardingRuleConfiguration createRuleConfiguration() {
         ShardingRuleConfiguration result = new ShardingRuleConfiguration();
-        Properties props = new Properties();
-        props.put("work-id", 123);
-        result.getKeyGenerators().put("snowflake", new ShardingSphereAlgorithmConfiguration("SNOWFLAKE", props));
-        return Collections.singleton(result);
+        result.getKeyGenerators().put("snowflake", new ShardingSphereAlgorithmConfiguration("SNOWFLAKE", new Properties()));
+        return result;
     }
 }

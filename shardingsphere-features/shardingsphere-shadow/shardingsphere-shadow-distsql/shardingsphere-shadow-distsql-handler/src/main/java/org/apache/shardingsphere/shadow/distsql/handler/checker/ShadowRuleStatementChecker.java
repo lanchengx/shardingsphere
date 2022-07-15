@@ -17,12 +17,12 @@
 
 package org.apache.shardingsphere.shadow.distsql.handler.checker;
 
-import org.apache.shardingsphere.infra.config.scope.SchemaRuleConfiguration;
+import org.apache.shardingsphere.infra.config.scope.DatabaseRuleConfiguration;
 import org.apache.shardingsphere.infra.distsql.exception.DistSQLException;
 import org.apache.shardingsphere.infra.distsql.exception.resource.RequiredResourceMissedException;
 import org.apache.shardingsphere.infra.distsql.exception.rule.InvalidAlgorithmConfigurationException;
 import org.apache.shardingsphere.infra.distsql.exception.rule.RequiredRuleMissedException;
-import org.apache.shardingsphere.infra.metadata.ShardingSphereMetaData;
+import org.apache.shardingsphere.infra.metadata.database.ShardingSphereDatabase;
 import org.apache.shardingsphere.shadow.distsql.parser.segment.ShadowAlgorithmSegment;
 
 import java.util.Collection;
@@ -41,25 +41,24 @@ public class ShadowRuleStatementChecker {
     /**
      * Check if the configuration exists.
      *
-     * @param schemaName schema name
-     * @param configuration configuration
+     * @param databaseName database name
+     * @param config configuration
      * @throws DistSQLException DistSQL exception
      */
-    public static void checkConfigurationExist(final String schemaName, final SchemaRuleConfiguration configuration) throws DistSQLException {
-        DistSQLException.predictionThrow(null != configuration, () -> new RequiredRuleMissedException(SHADOW, schemaName));
+    public static void checkConfigurationExist(final String databaseName, final DatabaseRuleConfiguration config) throws DistSQLException {
+        DistSQLException.predictionThrow(null != config, () -> new RequiredRuleMissedException(SHADOW, databaseName));
     }
     
     /**
      * Check if resources exist in meta data.
      *
      * @param resources resource being checked
-     * @param metaData meta rules
-     * @param schemaName schema name
+     * @param database database
      * @throws DistSQLException DistSQL exception
      */
-    public static void checkResourceExist(final Collection<String> resources, final ShardingSphereMetaData metaData, final String schemaName) throws DistSQLException {
-        Collection<String> notExistedResources = metaData.getResource().getNotExistedResources(resources);
-        DistSQLException.predictionThrow(notExistedResources.isEmpty(), () -> new RequiredResourceMissedException(schemaName, notExistedResources));
+    public static void checkResourceExist(final Collection<String> resources, final ShardingSphereDatabase database) throws DistSQLException {
+        Collection<String> notExistedResources = database.getResource().getNotExistedResources(resources);
+        DistSQLException.predictionThrow(notExistedResources.isEmpty(), () -> new RequiredResourceMissedException(database.getName(), notExistedResources));
     }
     
     /**
@@ -81,8 +80,8 @@ public class ShadowRuleStatementChecker {
      * @param thrower thrower
      * @throws DistSQLException DistSQL exception
      */
-    public static void checkRulesExist(final Collection<String> requireRules, final Collection<String> currentRules, 
-                                       final Function<Collection<String>, DistSQLException> thrower) throws DistSQLException {
+    public static void checkRulesExist(final Collection<String> requireRules,
+                                       final Collection<String> currentRules, final Function<Collection<String>, DistSQLException> thrower) throws DistSQLException {
         ShadowRuleStatementChecker.checkAnyDifferent(requireRules, currentRules, thrower);
     }
     
@@ -94,8 +93,8 @@ public class ShadowRuleStatementChecker {
      * @param thrower thrower
      * @throws DistSQLException DistSQL exception
      */
-    public static void checkAlgorithmExist(final Collection<String> requireAlgorithms, final Collection<String> currentAlgorithms, 
-                                           final Function<Collection<String>, DistSQLException> thrower) throws DistSQLException {
+    public static void checkAlgorithmExist(final Collection<String> requireAlgorithms,
+                                           final Collection<String> currentAlgorithms, final Function<Collection<String>, DistSQLException> thrower) throws DistSQLException {
         ShadowRuleStatementChecker.checkAnyDifferent(requireAlgorithms, currentAlgorithms, thrower);
     }
     
@@ -119,8 +118,8 @@ public class ShadowRuleStatementChecker {
      * @param thrower exception thrower
      * @throws DistSQLException DistSQL exception
      */
-    public static void checkAnyDuplicate(final Collection<String> requireRules, final Collection<String> currentRules, 
-                                         final Function<Collection<String>, DistSQLException> thrower) throws DistSQLException {
+    public static void checkAnyDuplicate(final Collection<String> requireRules,
+                                         final Collection<String> currentRules, final Function<Collection<String>, DistSQLException> thrower) throws DistSQLException {
         Collection<String> identical = getIdentical(requireRules, currentRules);
         DistSQLException.predictionThrow(identical.isEmpty(), () -> thrower.apply(identical));
     }
@@ -133,8 +132,8 @@ public class ShadowRuleStatementChecker {
      * @param thrower exception thrower
      * @throws DistSQLException DistSQL exception
      */
-    public static void checkAnyDifferent(final Collection<String> requireRules, final Collection<String> currentRules, 
-                                         final Function<Collection<String>, DistSQLException> thrower) throws DistSQLException {
+    public static void checkAnyDifferent(final Collection<String> requireRules,
+                                         final Collection<String> currentRules, final Function<Collection<String>, DistSQLException> thrower) throws DistSQLException {
         Collection<String> different = getDifferent(requireRules, currentRules);
         DistSQLException.predictionThrow(different.isEmpty(), () -> thrower.apply(different));
     }

@@ -17,11 +17,13 @@
 
 package org.apache.shardingsphere.infra.executor.check;
 
-import org.apache.shardingsphere.infra.metadata.ShardingSphereMetaData;
+import org.apache.shardingsphere.infra.binder.statement.SQLStatementContext;
+import org.apache.shardingsphere.infra.check.SQLCheckResult;
+import org.apache.shardingsphere.infra.metadata.database.ShardingSphereDatabase;
 import org.apache.shardingsphere.infra.metadata.user.Grantee;
 import org.apache.shardingsphere.infra.rule.ShardingSphereRule;
-import org.apache.shardingsphere.spi.ordered.OrderedSPI;
-import org.apache.shardingsphere.sql.parser.sql.common.statement.SQLStatement;
+import org.apache.shardingsphere.spi.annotation.SingletonSPI;
+import org.apache.shardingsphere.spi.type.ordered.OrderedSPI;
 
 import java.util.List;
 import java.util.Map;
@@ -30,30 +32,31 @@ import java.util.function.BiPredicate;
 /**
  * SQL checker.
  */
+@SingletonSPI
 public interface SQLChecker<T extends ShardingSphereRule> extends OrderedSPI<T> {
     
     /**
-     * Check schema.
+     * Check database.
      *
-     * @param schemaName schema name
+     * @param databaseName database name
      * @param grantee grantee
      * @param rule rule
      * @return check result
      */
-    boolean check(String schemaName, Grantee grantee, T rule);
+    boolean check(String databaseName, Grantee grantee, T rule);
     
     /**
      * Check SQL.
      * 
-     * @param sqlStatement SQL statement
+     * @param sqlStatementContext SQL statement context
      * @param parameters SQL parameters
      * @param grantee grantee
-     * @param currentSchema current schema
-     * @param metaDataMap meta data map
+     * @param currentDatabase current database
+     * @param databases databases
      * @param rule rule
      * @return SQL check result
      */
-    SQLCheckResult check(SQLStatement sqlStatement, List<Object> parameters, Grantee grantee, String currentSchema, Map<String, ShardingSphereMetaData> metaDataMap, T rule);
+    SQLCheckResult check(SQLStatementContext<?> sqlStatementContext, List<Object> parameters, Grantee grantee, String currentDatabase, Map<String, ShardingSphereDatabase> databases, T rule);
     
     /**
      * Check User.

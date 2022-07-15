@@ -40,7 +40,9 @@ execute
     | startTransaction
     | end
     | commit
+    | commitPrepared
     | rollback
+    | rollbackPrepared
     | abort
     | savepoint
     | releaseSavepoint
@@ -70,6 +72,8 @@ execute
     | alterProcedure
     | alterServer
     | alterSequence
+    | alterView
+    | comment
     | createDatabase
     | createFunction
     | createProcedure
@@ -80,6 +84,8 @@ execute
     | createDomain
     | createRule
     | createSchema
+    | alterSchema
+    | dropSchema
     | createType
     | createTextSearch
     | declare
@@ -92,14 +98,17 @@ execute
     | dropView
     | dropSequence
     | dropDomain
-    | dropSchema
     | vacuum
     | prepare
     | executeStmt
     | deallocate
     | explain
     | analyzeTable
+    | listen
+    | notifyStmt
+    | unlisten
     | load
+    | lock
     | createTablespace
     | alterTablespace
     | dropTablespace
@@ -122,5 +131,42 @@ execute
     | dropForeignTable
     | dropOperator
     | dropMaterializedView
-    ) SEMI_?
+    | dropGroup
+    | dropCast
+    | dropEventTrigger
+    | dropAggregate
+    | dropCollation
+    | dropForeignDataWrapper
+    | dropRule
+    | dropType
+    | dropRoutine
+    | dropStatistics
+    | dropPublication
+    | dropOperatorClass
+    | dropSubscription
+    | dropTextSearch
+    | dropOperatorFamily
+    | dropAccessMethod
+    | dropServer
+    | alterPolicy
+    | checkpoint
+    | fetch
+    | move
+    | close
+    | cluster
+    | alterOperator
+    | createAccessMethod
+    | alterPublication
+    | createAggregate
+    | createCast
+    | alterRoutine
+    | alterRule
+    | createCollation
+    | prepareTransaction
+    | reassignOwned
+    | refreshMatViewStmt
+    | reindex
+    | securityLabelStmt
+    | createEventTrigger
+    ) SEMI_? EOF
     ;

@@ -18,12 +18,12 @@
 package org.apache.shardingsphere.proxy.backend.communication.jdbc;
 
 import lombok.SneakyThrows;
-import org.apache.commons.lang3.concurrent.LazyInitializer;
 import org.apache.shardingsphere.infra.binder.LogicSQL;
+import org.apache.shardingsphere.infra.binder.statement.SQLStatementContext;
+import org.apache.shardingsphere.infra.binder.statement.dml.SelectStatementContext;
 import org.apache.shardingsphere.infra.config.props.ConfigurationPropertyKey;
 import org.apache.shardingsphere.infra.database.type.DatabaseType;
-import org.apache.shardingsphere.infra.database.type.dialect.OpenGaussDatabaseType;
-import org.apache.shardingsphere.infra.database.type.dialect.PostgreSQLDatabaseType;
+import org.apache.shardingsphere.infra.database.type.DatabaseTypeEngine;
 import org.apache.shardingsphere.infra.executor.sql.context.ExecutionContext;
 import org.apache.shardingsphere.infra.executor.sql.execute.engine.SQLExecutorExceptionHandler;
 import org.apache.shardingsphere.infra.executor.sql.execute.engine.driver.jdbc.JDBCExecutionUnit;
@@ -36,8 +36,8 @@ import org.apache.shardingsphere.infra.executor.sql.prepare.driver.jdbc.Statemen
 import org.apache.shardingsphere.infra.federation.executor.FederationContext;
 import org.apache.shardingsphere.infra.federation.executor.FederationExecutor;
 import org.apache.shardingsphere.infra.federation.executor.FederationExecutorFactory;
-import org.apache.shardingsphere.infra.metadata.ShardingSphereMetaData;
-import org.apache.shardingsphere.infra.rule.identifier.type.DataNodeContainedRule;
+import org.apache.shardingsphere.infra.metadata.database.ShardingSphereDatabase;
+import org.apache.shardingsphere.infra.metadata.database.schema.util.SystemSchemaUtil;
 import org.apache.shardingsphere.mode.metadata.MetaDataContexts;
 import org.apache.shardingsphere.proxy.backend.communication.DatabaseCommunicationEngine;
 import org.apache.shardingsphere.proxy.backend.communication.ProxySQLExecutor;
@@ -48,11 +48,10 @@ import org.apache.shardingsphere.proxy.backend.communication.jdbc.statement.JDBC
 import org.apache.shardingsphere.proxy.backend.context.BackendExecutorContext;
 import org.apache.shardingsphere.proxy.backend.context.ProxyContext;
 import org.apache.shardingsphere.proxy.backend.response.header.ResponseHeader;
-import org.apache.shardingsphere.proxy.backend.response.header.query.QueryHeaderBuilder;
-import org.apache.shardingsphere.proxy.backend.response.header.query.QueryHeaderBuilderFactory;
+import org.apache.shardingsphere.proxy.backend.response.header.query.QueryHeaderBuilderEngine;
 import org.apache.shardingsphere.proxy.backend.response.header.query.QueryResponseHeader;
 import org.apache.shardingsphere.proxy.backend.response.header.update.UpdateResponseHeader;
-import org.apache.shardingsphere.sharding.merge.dql.iterator.IteratorStreamMergedResult;
+import org.apache.shardingsphere.sharding.merge.common.IteratorStreamMergedResult;
 import org.apache.shardingsphere.sql.parser.sql.dialect.statement.mysql.dml.MySQLInsertStatement;
 
 import java.sql.Connection;
@@ -81,15 +80,17 @@ public final class JDBCDatabaseCommunicationEngine extends DatabaseCommunication
     
     private final JDBCBackendConnection backendConnection;
     
-    public JDBCDatabaseCommunicationEngine(final String driverType, final ShardingSphereMetaData metaData, final LogicSQL logicSQL, final JDBCBackendConnection backendConnection) {
-        super(driverType, metaData, logicSQL, backendConnection);
+    public JDBCDatabaseCommunicationEngine(final String driverType, final ShardingSphereDatabase database, final LogicSQL logicSQL, final JDBCBackendConnection backendConnection) {
+        super(driverType, database, logicSQL, backendConnection);
         proxySQLExecutor = new ProxySQLExecutor(driverType, backendConnection, this);
         this.backendConnection = backendConnection;
         MetaDataContexts metaDataContexts = ProxyContext.getInstance().getContextManager().getMetaDataContexts();
-        String databaseName = backendConnection.getConnectionSession().getSchemaName();
-        String schemaName = logicSQL.getSqlStatementContext().getTablesContext().getSchemaNames().stream().findFirst().orElse(databaseName);
-        federationExecutor = FederationExecutorFactory.newInstance(databaseName, schemaName, metaDataContexts.getOptimizerContext(),
-                metaDataContexts.getProps(), new JDBCExecutor(BackendExecutorContext.getInstance().getExecutorEngine(), backendConnection.isSerialExecute()));
+        String databaseName = backendConnection.getConnectionSession().getDatabaseName();
+        DatabaseType databaseType = logicSQL.getSqlStatementContext().getDatabaseType();
+        String schemaName = logicSQL.getSqlStatementContext().getTablesContext().getSchemaName().orElseGet(() -> DatabaseTypeEngine.getDefaultSchemaName(databaseType, databaseName));
+        federationExecutor = FederationExecutorFactory.newInstance(databaseName, schemaName, metaDataContexts.getOptimizerContext(), metaDataContexts.getMetaData().getGlobalRuleMetaData(),
+                metaDataContexts.getMetaData().getProps(), new JDBCExecutor(BackendExecutorContext.getInstance().getExecutorEngine(), backendConnection.isSerialExecute()),
+                ProxyContext.getInstance().getContextManager().getInstanceContext().getEventBusContext());
     }
     
     /**
@@ -119,12 +120,14 @@ public final class JDBCDatabaseCommunicationEngine extends DatabaseCommunication
     @SneakyThrows(SQLException.class)
     public ResponseHeader execute() {
         LogicSQL logicSQL = getLogicSQL();
+        MetaDataContexts metaDataContexts = ProxyContext.getInstance().getContextManager().getMetaDataContexts();
         ExecutionContext executionContext = getKernelProcessor().generateExecutionContext(
-                logicSQL, getMetaData(), ProxyContext.getInstance().getContextManager().getMetaDataContexts().getProps());
+                logicSQL, getDatabase(), metaDataContexts.getMetaData().getGlobalRuleMetaData(), metaDataContexts.getMetaData().getProps());
         // TODO move federation route logic to binder
-        if (executionContext.getRouteContext().isFederated() 
-                || containsSystemSchema(logicSQL.getSqlStatementContext().getDatabaseType(), logicSQL.getSqlStatementContext().getTablesContext().getSchemaNames())) {
-            MetaDataContexts metaDataContexts = ProxyContext.getInstance().getContextManager().getMetaDataContexts();
+        SQLStatementContext<?> sqlStatementContext = logicSQL.getSqlStatementContext();
+        ShardingSphereDatabase database = metaDataContexts.getMetaData().getDatabases().get(backendConnection.getConnectionSession().getDatabaseName());
+        if (executionContext.getRouteContext().isFederated() || (sqlStatementContext instanceof SelectStatementContext
+                && SystemSchemaUtil.containsSystemSchema(sqlStatementContext.getDatabaseType(), sqlStatementContext.getTablesContext().getSchemaNames(), database))) {
             ResultSet resultSet = doExecuteFederation(logicSQL, metaDataContexts);
             return processExecuteFederation(resultSet, metaDataContexts);
         }
@@ -132,7 +135,7 @@ public final class JDBCDatabaseCommunicationEngine extends DatabaseCommunication
             return new UpdateResponseHeader(executionContext.getSqlStatementContext().getSqlStatement());
         }
         proxySQLExecutor.checkExecutePrerequisites(executionContext);
-        checkLockedSchema(executionContext);
+        checkLockedDatabase(executionContext);
         List result = proxySQLExecutor.execute(executionContext);
         refreshMetaData(executionContext);
         Object executeResultSample = result.iterator().next();
@@ -141,44 +144,31 @@ public final class JDBCDatabaseCommunicationEngine extends DatabaseCommunication
                 : processExecuteUpdate(executionContext, result);
     }
     
-    private boolean containsSystemSchema(final DatabaseType databaseType, final Collection<String> schemaNames) {
-        if (databaseType instanceof PostgreSQLDatabaseType || databaseType instanceof OpenGaussDatabaseType) {
-            for (String each : schemaNames) {
-                if (!databaseType.getSystemSchemas().contains(each)) {
-                    continue;
-                }
-                return true;
-            }
-        }
-        return databaseType.getSystemSchemas().contains(backendConnection.getConnectionSession().getSchemaName());
-    }
-    
     private ResultSet doExecuteFederation(final LogicSQL logicSQL, final MetaDataContexts metaDataContexts) throws SQLException {
         boolean isReturnGeneratedKeys = logicSQL.getSqlStatementContext().getSqlStatement() instanceof MySQLInsertStatement;
-        DatabaseType databaseType = metaDataContexts.getMetaData(backendConnection.getConnectionSession().getSchemaName()).getResource().getDatabaseType();
+        DatabaseType databaseType = metaDataContexts.getMetaData().getDatabases().get(backendConnection.getConnectionSession().getDatabaseName()).getResource().getDatabaseType();
         ProxyJDBCExecutorCallback callback = ProxyJDBCExecutorCallbackFactory.newInstance(getDriverType(), databaseType,
                 logicSQL.getSqlStatementContext().getSqlStatement(), this, isReturnGeneratedKeys, SQLExecutorExceptionHandler.isExceptionThrown(), true);
         backendConnection.setFederationExecutor(federationExecutor);
         DriverExecutionPrepareEngine<JDBCExecutionUnit, Connection> prepareEngine = createDriverExecutionPrepareEngine(isReturnGeneratedKeys, metaDataContexts);
-        FederationContext context = new FederationContext(false, logicSQL, metaDataContexts.getMetaDataMap());
+        FederationContext context = new FederationContext(false, logicSQL, metaDataContexts.getMetaData().getDatabases());
         return federationExecutor.executeQuery(prepareEngine, callback, context);
     }
     
     private DriverExecutionPrepareEngine<JDBCExecutionUnit, Connection> createDriverExecutionPrepareEngine(final boolean isReturnGeneratedKeys, final MetaDataContexts metaData) {
-        int maxConnectionsSizePerQuery = metaData.getProps().<Integer>getValue(ConfigurationPropertyKey.MAX_CONNECTIONS_SIZE_PER_QUERY);
+        int maxConnectionsSizePerQuery = metaData.getMetaData().getProps().<Integer>getValue(ConfigurationPropertyKey.MAX_CONNECTIONS_SIZE_PER_QUERY);
         JDBCBackendStatement statementManager = (JDBCBackendStatement) backendConnection.getConnectionSession().getStatementManager();
-        return new DriverExecutionPrepareEngine<>(getDriverType(), maxConnectionsSizePerQuery, backendConnection, statementManager, 
-                new StatementOption(isReturnGeneratedKeys), metaData.getMetaData(backendConnection.getConnectionSession().getSchemaName()).getRuleMetaData().getRules());
+        return new DriverExecutionPrepareEngine<>(getDriverType(), maxConnectionsSizePerQuery, backendConnection, statementManager,
+                new StatementOption(isReturnGeneratedKeys), metaData.getMetaData().getDatabases().get(backendConnection.getConnectionSession().getDatabaseName()).getRuleMetaData().getRules());
     }
     
     private ResponseHeader processExecuteFederation(final ResultSet resultSet, final MetaDataContexts metaDataContexts) throws SQLException {
         int columnCount = resultSet.getMetaData().getColumnCount();
         setQueryHeaders(new ArrayList<>(columnCount));
-        ShardingSphereMetaData metaData = metaDataContexts.getMetaData(backendConnection.getConnectionSession().getSchemaName());
-        LazyInitializer<DataNodeContainedRule> dataNodeContainedRule = getDataNodeContainedRuleLazyInitializer(metaData);
-        QueryHeaderBuilder queryHeaderBuilder = QueryHeaderBuilderFactory.getQueryHeaderBuilder(null == metaData ? null : metaData.getResource().getDatabaseType());
+        ShardingSphereDatabase database = metaDataContexts.getMetaData().getDatabases().get(backendConnection.getConnectionSession().getDatabaseName());
+        QueryHeaderBuilderEngine queryHeaderBuilderEngine = new QueryHeaderBuilderEngine(null == database ? null : database.getProtocolType());
         for (int columnIndex = 1; columnIndex <= columnCount; columnIndex++) {
-            getQueryHeaders().add(queryHeaderBuilder.build(new JDBCQueryResultMetaData(resultSet.getMetaData()), metaData, columnIndex, dataNodeContainedRule));
+            getQueryHeaders().add(queryHeaderBuilderEngine.build(new JDBCQueryResultMetaData(resultSet.getMetaData()), database, columnIndex));
         }
         setMergedResult(new IteratorStreamMergedResult(Collections.singletonList(new JDBCStreamQueryResult(resultSet))));
         return new QueryResponseHeader(getQueryHeaders());
@@ -218,6 +208,7 @@ public final class JDBCDatabaseCommunicationEngine extends DatabaseCommunication
         Collection<SQLException> result = new LinkedList<>();
         for (Statement each : cachedStatements) {
             try {
+                each.cancel();
                 each.close();
             } catch (final SQLException ex) {
                 result.add(ex);

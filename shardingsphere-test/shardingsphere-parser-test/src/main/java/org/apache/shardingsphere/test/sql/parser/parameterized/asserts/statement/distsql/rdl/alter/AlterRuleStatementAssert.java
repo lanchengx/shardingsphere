@@ -21,7 +21,7 @@ import org.apache.shardingsphere.dbdiscovery.distsql.parser.statement.AlterDatab
 import org.apache.shardingsphere.dbdiscovery.distsql.parser.statement.AlterDatabaseDiscoveryRuleStatement;
 import org.apache.shardingsphere.dbdiscovery.distsql.parser.statement.AlterDatabaseDiscoveryTypeStatement;
 import org.apache.shardingsphere.distsql.parser.statement.rdl.alter.AlterRuleStatement;
-import org.apache.shardingsphere.distsql.parser.statement.rdl.create.AlterDefaultSingleTableRuleStatement;
+import org.apache.shardingsphere.distsql.parser.statement.rdl.alter.AlterDefaultSingleTableRuleStatement;
 import org.apache.shardingsphere.encrypt.distsql.parser.statement.AlterEncryptRuleStatement;
 import org.apache.shardingsphere.readwritesplitting.distsql.parser.statement.AlterReadwriteSplittingRuleStatement;
 import org.apache.shardingsphere.scaling.distsql.statement.DisableShardingScalingRuleStatement;
@@ -29,6 +29,7 @@ import org.apache.shardingsphere.scaling.distsql.statement.EnableShardingScaling
 import org.apache.shardingsphere.shadow.distsql.parser.statement.AlterShadowAlgorithmStatement;
 import org.apache.shardingsphere.shadow.distsql.parser.statement.AlterShadowRuleStatement;
 import org.apache.shardingsphere.sharding.distsql.parser.statement.AlterDefaultShardingStrategyStatement;
+import org.apache.shardingsphere.sharding.distsql.parser.statement.AlterShardingAuditorStatement;
 import org.apache.shardingsphere.sharding.distsql.parser.statement.AlterShardingBindingTableRulesStatement;
 import org.apache.shardingsphere.sharding.distsql.parser.statement.AlterShardingBroadcastTableRulesStatement;
 import org.apache.shardingsphere.sharding.distsql.parser.statement.AlterShardingKeyGeneratorStatement;
@@ -43,6 +44,7 @@ import org.apache.shardingsphere.test.sql.parser.parameterized.asserts.statement
 import org.apache.shardingsphere.test.sql.parser.parameterized.asserts.statement.distsql.rdl.alter.impl.AlterReadwriteSplittingRuleStatementAssert;
 import org.apache.shardingsphere.test.sql.parser.parameterized.asserts.statement.distsql.rdl.alter.impl.AlterShadowAlgorithmStatementAssert;
 import org.apache.shardingsphere.test.sql.parser.parameterized.asserts.statement.distsql.rdl.alter.impl.AlterShadowRuleStatementAssert;
+import org.apache.shardingsphere.test.sql.parser.parameterized.asserts.statement.distsql.rdl.alter.impl.AlterShardingAuditorStatementAssert;
 import org.apache.shardingsphere.test.sql.parser.parameterized.asserts.statement.distsql.rdl.alter.impl.AlterShardingBindingTableRulesStatementAssert;
 import org.apache.shardingsphere.test.sql.parser.parameterized.asserts.statement.distsql.rdl.alter.impl.AlterShardingBroadcastTableRulesStatementAssert;
 import org.apache.shardingsphere.test.sql.parser.parameterized.asserts.statement.distsql.rdl.alter.impl.AlterShardingKeyGeneratorStatementAssert;
@@ -58,6 +60,7 @@ import org.apache.shardingsphere.test.sql.parser.parameterized.jaxb.cases.domain
 import org.apache.shardingsphere.test.sql.parser.parameterized.jaxb.cases.domain.statement.distsql.rdl.alter.AlterReadwriteSplittingRuleStatementTestCase;
 import org.apache.shardingsphere.test.sql.parser.parameterized.jaxb.cases.domain.statement.distsql.rdl.alter.AlterShadowAlgorithmStatementTestCase;
 import org.apache.shardingsphere.test.sql.parser.parameterized.jaxb.cases.domain.statement.distsql.rdl.alter.AlterShadowRuleStatementTestCase;
+import org.apache.shardingsphere.test.sql.parser.parameterized.jaxb.cases.domain.statement.distsql.rdl.alter.AlterShardingAuditorStatementTestCase;
 import org.apache.shardingsphere.test.sql.parser.parameterized.jaxb.cases.domain.statement.distsql.rdl.alter.AlterShardingBindingTableRulesStatementTestCase;
 import org.apache.shardingsphere.test.sql.parser.parameterized.jaxb.cases.domain.statement.distsql.rdl.alter.AlterShardingBroadcastTableRulesStatementTestCase;
 import org.apache.shardingsphere.test.sql.parser.parameterized.jaxb.cases.domain.statement.distsql.rdl.alter.AlterShardingKeyGeneratorStatementTestCase;
@@ -101,10 +104,12 @@ public final class AlterRuleStatementAssert {
         } else if (actual instanceof AlterShadowAlgorithmStatement) {
             AlterShadowAlgorithmStatementAssert.assertIs(assertContext, (AlterShadowAlgorithmStatement) actual, (AlterShadowAlgorithmStatementTestCase) expected);
         } else if (actual instanceof AlterDefaultSingleTableRuleStatement) {
-            AlterDefaultSingleTableRuleStatementAssert.assertIs(assertContext, (AlterDefaultSingleTableRuleStatement) actual, 
+            AlterDefaultSingleTableRuleStatementAssert.assertIs(assertContext, (AlterDefaultSingleTableRuleStatement) actual,
                     (AlterDefaultSingleTableRuleStatementTestCase) expected);
         } else if (actual instanceof AlterShardingKeyGeneratorStatement) {
             AlterShardingKeyGeneratorStatementAssert.assertIs(assertContext, (AlterShardingKeyGeneratorStatement) actual, (AlterShardingKeyGeneratorStatementTestCase) expected);
+        } else if (actual instanceof AlterShardingAuditorStatement) {
+            AlterShardingAuditorStatementAssert.assertIs(assertContext, (AlterShardingAuditorStatement) actual, (AlterShardingAuditorStatementTestCase) expected);
         } else if (actual instanceof EnableShardingScalingRuleStatement) {
             EnableShardingScalingRuleStatementAssert.assertIs(assertContext, (EnableShardingScalingRuleStatement) actual, (EnableShardingScalingRuleStatementTestCase) expected);
         } else if (actual instanceof DisableShardingScalingRuleStatement) {

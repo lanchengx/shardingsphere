@@ -18,11 +18,11 @@
 package org.apache.shardingsphere.infra.federation.optimizer.metadata;
 
 import lombok.Getter;
-import org.apache.shardingsphere.infra.metadata.ShardingSphereMetaData;
+import org.apache.shardingsphere.infra.metadata.database.ShardingSphereDatabase;
 
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Federation meta data.
@@ -32,10 +32,10 @@ public final class FederationMetaData {
     
     private final Map<String, FederationDatabaseMetaData> databases;
     
-    public FederationMetaData(final Map<String, ShardingSphereMetaData> metaDataMap) {
-        databases = new LinkedHashMap<>(metaDataMap.size(), 1);
-        for (Entry<String, ShardingSphereMetaData> entry : metaDataMap.entrySet()) {
-            databases.put(entry.getKey().toLowerCase(), new FederationDatabaseMetaData(entry.getKey(), entry.getValue().getSchemas()));
+    public FederationMetaData(final Map<String, ShardingSphereDatabase> databases) {
+        this.databases = new ConcurrentHashMap<>(databases.size(), 1);
+        for (Entry<String, ShardingSphereDatabase> entry : databases.entrySet()) {
+            this.databases.put(entry.getKey().toLowerCase(), new FederationDatabaseMetaData(entry.getKey(), entry.getValue().getSchemas()));
         }
     }
 }

@@ -23,12 +23,12 @@ import org.apache.shardingsphere.sql.parser.sql.common.constant.QuoteCharacter;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Optional;
+import java.util.Map;
 
 public final class DummyDatabaseType implements DatabaseType {
     
     @Override
-    public String getName() {
+    public String getType() {
         return "Dummy";
     }
     
@@ -48,13 +48,8 @@ public final class DummyDatabaseType implements DatabaseType {
     }
     
     @Override
-    public Optional<String> getDataSourceClassName() {
-        return Optional.empty();
-    }
-    
-    @Override
-    public Collection<String> getSystemDatabases() {
-        return Collections.emptyList();
+    public Map<String, Collection<String>> getSystemDatabaseSchemaMap() {
+        return Collections.emptyMap();
     }
     
     @Override

@@ -20,14 +20,14 @@ package org.apache.shardingsphere.spring.namespace.parser;
 import lombok.RequiredArgsConstructor;
 import org.apache.shardingsphere.dbdiscovery.algorithm.config.AlgorithmProvidedDatabaseDiscoveryRuleConfiguration;
 import org.apache.shardingsphere.encrypt.algorithm.config.AlgorithmProvidedEncryptRuleConfiguration;
-import org.apache.shardingsphere.infra.config.scope.SchemaRuleConfiguration;
+import org.apache.shardingsphere.infra.config.scope.DatabaseRuleConfiguration;
 import org.apache.shardingsphere.readwritesplitting.algorithm.config.AlgorithmProvidedReadwriteSplittingRuleConfiguration;
 import org.apache.shardingsphere.shadow.algorithm.config.AlgorithmProvidedShadowRuleConfiguration;
 import org.apache.shardingsphere.sharding.algorithm.config.AlgorithmProvidedShardingRuleConfiguration;
-import org.apache.shardingsphere.spring.namespace.factorybean.ShardingSphereAlgorithmFactoryBean;
 import org.apache.shardingsphere.spring.namespace.tag.ShardingSphereAlgorithmBeanDefinitionTag;
 import org.springframework.beans.MutablePropertyValues;
 import org.springframework.beans.PropertyValue;
+import org.springframework.beans.factory.FactoryBean;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.RuntimeBeanReference;
 import org.springframework.beans.factory.support.AbstractBeanDefinition;
@@ -46,7 +46,7 @@ import java.util.Properties;
 @RequiredArgsConstructor
 public final class ShardingSphereAlgorithmBeanDefinitionParser extends AbstractBeanDefinitionParser {
     
-    private final Class<? extends ShardingSphereAlgorithmFactoryBean<?>> beanClass;
+    private final Class<? extends FactoryBean<?>> beanClass;
     
     @Override
     protected AbstractBeanDefinition parseInternal(final Element element, final ParserContext parserContext) {
@@ -83,7 +83,7 @@ public final class ShardingSphereAlgorithmBeanDefinitionParser extends AbstractB
     }
     
     @SuppressWarnings("unchecked")
-    private void setPropertyValue(final ParserContext parserContext, final String elementId, final Class<? extends SchemaRuleConfiguration> ruleConfigClass, final String propertyName) {
+    private void setPropertyValue(final ParserContext parserContext, final String elementId, final Class<? extends DatabaseRuleConfiguration> ruleConfigClass, final String propertyName) {
         String[] beanDefinitionNames = parserContext.getRegistry().getBeanDefinitionNames();
         for (String each : beanDefinitionNames) {
             BeanDefinition beanDefinition = parserContext.getRegistry().getBeanDefinition(each);

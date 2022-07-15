@@ -219,6 +219,10 @@ DIRECTORY
     : D I R E C T O R Y
     ;
 
+CREDENTIALS
+    : C R E D E N T I A L S
+    ;
+
 EDITION
     : E D I T I O N
     ;
@@ -241,6 +245,10 @@ EXCEPTIONS
 
 FORCE
     : F O R C E
+    ;
+
+NOFORCE
+    : N O F O R C E
     ;
 
 GLOBAL
@@ -929,6 +937,10 @@ LOG
 
 REUSE
     : R E U S E
+    ;
+
+SETTINGS
+    : S E T T I N G S
     ;
 
 STORAGE
@@ -1919,6 +1931,10 @@ SPFILE
     : S P F I L E
     ;
 
+PFILE
+    : P F I L E
+    ;
+
 BOTH
     : B O T H
     ;
@@ -2705,4 +2721,188 @@ SINGLE_C
 
 SYSTIMESTAMP
     : S Y S T I M E S T A M P
+    ;
+
+CATEGORY
+    : C A T E G O R Y
+    ;
+
+ORDER
+    : O R D E R
+    ;
+
+NOKEEP
+    : N O K E E P
+    ;
+
+SCALE
+    : S C A L E
+    ;
+
+NOSCALE
+    : N O S C A L E
+    ;
+
+EXTEND
+    : E X T E N D
+    ;
+
+NOEXTEND
+    : N O E X T E N D
+    ;
+
+NOSHARD
+    : N O S H A R D
+    ;
+
+INITIALIZED
+    : I N I T I A L I Z E D
+    ;
+
+EXTERNALLY
+    : E X T E R N A L L Y
+    ;
+
+GLOBALLY
+    : G L O B A L L Y
+    ;
+
+ACCESSED
+    : A C C E S S E D
+    ;
+
+RESTART
+    : R E S T A R T
+    ;
+
+OPTIMIZE
+    : O P T I M I Z E
+    ;
+
+QUOTA
+    : Q U O T A
+    ;
+
+DISKGROUP
+    : D I S K G R O U P
+    ;
+
+NORMAL
+    : N O R M A L
+    ;
+
+FLEX
+    : F L E X
+    ;
+
+SITE
+    : S I T E
+    ;
+
+QUORUM
+    : Q U O R U M
+    ;
+
+REGULAR
+    : R E G U L A R
+    ;
+
+FAILGROUP
+    : F A I L G R O U P
+    ;
+
+DISK
+    : D I S K
+    ;
+
+EXCLUDING
+    : E X C L U D I N G
+    ;
+
+CONTENTS
+    : C O N T E N T S
+    ;
+
+LOCKDOWN
+    : L O C K D O W N
+    ;
+
+CLEAN
+    : C L E A N
+    ;
+
+GUARANTEE
+    : G U A R A N T E E
+    ;
+
+PRUNING
+    : P R U N I N G
+    ;
+
+DEMAND
+    : D E M A N D
+    ;
+
+RESOLVE
+   : R E S O L V E
+   ;
+
+RESOLVER
+   : R E S O L V E R
+   ;
+
+SHARE
+    : S H A R E
+    ;
+
+EXCLUSIVE
+    : E X C L U S I V E
+    ;
+
+ANCILLARY
+    : A N C I L L A R Y
+    ;
+
+BINDING
+    : B I N D I N G
+    ;
+
+SCAN
+    : S C A N
+    ;
+
+COMPUTE
+    : C O M P U T E
+    ;
+
+UNDROP
+    : U N D R O P
+    ;
+
+DISKS
+    : D I S K S
+    ;
+
+COARSE
+    : C O A R S E
+    ;
+
+FINE
+    : F I N E
+    ;
+
+ALIAS
+    : A L I A S
+    ;
+
+SCRUB
+    : S C R U B
+    ;
+
+DISMOUNT
+    : D I S M O U N T
+    ;
+
+REBALANCE
+    : R E B A L A N C E
     ;

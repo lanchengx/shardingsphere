@@ -21,10 +21,8 @@ import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.apache.shardingsphere.infra.config.mode.ModeConfiguration;
 import org.apache.shardingsphere.spi.ShardingSphereServiceLoader;
-import org.apache.shardingsphere.spi.required.RequiredSPIRegistry;
-import org.apache.shardingsphere.spi.typed.TypedSPIRegistry;
-
-import java.util.Properties;
+import org.apache.shardingsphere.spi.type.required.RequiredSPIRegistry;
+import org.apache.shardingsphere.spi.type.typed.TypedSPIRegistry;
 
 /**
  * Context manager builder factory.
@@ -37,13 +35,12 @@ public final class ContextManagerBuilderFactory {
     }
     
     /**
-     * Build context manager.
+     * Get instance of context manager builder.
      * 
      * @param modeConfig mode configuration
-     * @return context manager
+     * @return got instance
      */
-    public static ContextManagerBuilder newInstance(final ModeConfiguration modeConfig) {
-        return null == modeConfig
-                ? RequiredSPIRegistry.getRegisteredService(ContextManagerBuilder.class) : TypedSPIRegistry.getRegisteredService(ContextManagerBuilder.class, modeConfig.getType(), new Properties());
+    public static ContextManagerBuilder getInstance(final ModeConfiguration modeConfig) {
+        return null == modeConfig ? RequiredSPIRegistry.getRegisteredService(ContextManagerBuilder.class) : TypedSPIRegistry.getRegisteredService(ContextManagerBuilder.class, modeConfig.getType());
     }
 }

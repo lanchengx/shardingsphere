@@ -24,8 +24,8 @@ import org.apache.shardingsphere.encrypt.spi.EncryptAlgorithm;
 import org.apache.shardingsphere.infra.binder.segment.select.orderby.OrderByItem;
 import org.apache.shardingsphere.infra.binder.segment.table.TablesContext;
 import org.apache.shardingsphere.infra.binder.statement.dml.SelectStatementContext;
-import org.apache.shardingsphere.infra.database.type.DatabaseTypeRegistry;
-import org.apache.shardingsphere.infra.rewrite.sql.token.pojo.generic.SubstitutableColumnNameToken;
+import org.apache.shardingsphere.infra.database.type.DatabaseTypeEngine;
+import org.apache.shardingsphere.infra.metadata.database.schema.decorator.model.ShardingSphereSchema;
 import org.apache.shardingsphere.sql.parser.sql.common.constant.OrderDirection;
 import org.apache.shardingsphere.sql.parser.sql.common.segment.dml.column.ColumnSegment;
 import org.apache.shardingsphere.sql.parser.sql.common.segment.dml.order.item.ColumnOrderByItemSegment;
@@ -37,7 +37,6 @@ import org.apache.shardingsphere.sql.parser.sql.common.value.identifier.Identifi
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Optional;
 
@@ -48,21 +47,21 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public final class EncryptOrderByItemTokenGeneratorTest {
-
+    
     private EncryptOrderByItemTokenGenerator generator;
-
+    
     @Before
     public void setup() {
         generator = new EncryptOrderByItemTokenGenerator();
         generator.setEncryptRule(buildEncryptRule());
+        generator.setSchemas(Collections.singletonMap("test", mock(ShardingSphereSchema.class)));
     }
-
+    
     @Test
     public void assertGenerateSQLTokens() {
-        Collection<SubstitutableColumnNameToken> sqlTokens = generator.generateSQLTokens(buildSelectStatementContext());
-        assertThat(sqlTokens.size(), is(1));
+        assertThat(generator.generateSQLTokens(buildSelectStatementContext()).size(), is(1));
     }
-
+    
     private SelectStatementContext buildSelectStatementContext() {
         SimpleTableSegment simpleTableSegment = new SimpleTableSegment(new TableNameSegment(0, 0, new IdentifierValue("t_encrypt")));
         simpleTableSegment.setAlias(new AliasSegment(0, 0, new IdentifierValue("a")));
@@ -74,10 +73,10 @@ public final class EncryptOrderByItemTokenGeneratorTest {
         when(result.getOrderByContext().getItems()).thenReturn(Collections.singletonList(orderByItem));
         when(result.getGroupByContext().getItems()).thenReturn(Collections.emptyList());
         when(result.getSubqueryContexts().values()).thenReturn(Collections.emptyList());
-        when(result.getTablesContext()).thenReturn(new TablesContext(Collections.singletonList(simpleTableSegment), DatabaseTypeRegistry.getDefaultDatabaseType()));
+        when(result.getTablesContext()).thenReturn(new TablesContext(Collections.singletonList(simpleTableSegment), DatabaseTypeEngine.getDatabaseType("MySQL")));
         return result;
     }
-
+    
     private EncryptRule buildEncryptRule() {
         EncryptRule result = mock(EncryptRule.class);
         EncryptTable encryptTable = mock(EncryptTable.class);
@@ -89,5 +88,4 @@ public final class EncryptOrderByItemTokenGeneratorTest {
         when(result.findEncryptTable("t_encrypt")).thenReturn(Optional.of(encryptTable));
         return result;
     }
-
 }

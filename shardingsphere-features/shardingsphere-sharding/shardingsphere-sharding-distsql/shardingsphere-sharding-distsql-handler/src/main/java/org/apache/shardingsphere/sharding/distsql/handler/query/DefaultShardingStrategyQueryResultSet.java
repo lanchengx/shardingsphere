@@ -19,11 +19,12 @@ package org.apache.shardingsphere.sharding.distsql.handler.query;
 
 import org.apache.shardingsphere.infra.config.algorithm.ShardingSphereAlgorithmConfiguration;
 import org.apache.shardingsphere.infra.distsql.query.DistSQLResultSet;
-import org.apache.shardingsphere.infra.metadata.ShardingSphereMetaData;
+import org.apache.shardingsphere.infra.metadata.database.ShardingSphereDatabase;
 import org.apache.shardingsphere.sharding.api.config.ShardingRuleConfiguration;
 import org.apache.shardingsphere.sharding.api.config.strategy.sharding.ShardingStrategyConfiguration;
 import org.apache.shardingsphere.sharding.distsql.handler.enums.ShardingStrategyType;
 import org.apache.shardingsphere.sharding.distsql.parser.statement.ShowDefaultShardingStrategyStatement;
+import org.apache.shardingsphere.sharding.rule.ShardingRule;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.SQLStatement;
 
 import java.util.Arrays;
@@ -37,38 +38,39 @@ import java.util.Map.Entry;
 import java.util.Optional;
 
 /**
- * Result set for show default sharding strategy.
+ * Query result set for show default sharding strategy.
  */
 public final class DefaultShardingStrategyQueryResultSet implements DistSQLResultSet {
     
     private Iterator<Entry<String, LinkedList<Object>>> data = Collections.emptyIterator();
     
     @Override
-    public void init(final ShardingSphereMetaData metaData, final SQLStatement sqlStatement) {
-        Optional<ShardingRuleConfiguration> shardingRuleConfiguration = metaData.getRuleMetaData().findRuleConfiguration(ShardingRuleConfiguration.class).stream().findAny();
-        shardingRuleConfiguration.ifPresent(op -> data = buildData(op).entrySet().iterator());
+    public void init(final ShardingSphereDatabase database, final SQLStatement sqlStatement) {
+        Optional<ShardingRule> shardingRule = database.getRuleMetaData().findSingleRule(ShardingRule.class);
+        shardingRule.ifPresent(optional -> data = buildData(optional).entrySet().iterator());
     }
     
-    private Map<String, LinkedList<Object>> buildData(final ShardingRuleConfiguration ruleConfiguration) {
+    private Map<String, LinkedList<Object>> buildData(final ShardingRule rule) {
         Map<String, LinkedList<Object>> result = new LinkedHashMap<>(2);
-        result.put("TABLE", buildDataItem(ruleConfiguration, ruleConfiguration.getDefaultTableShardingStrategy()));
-        result.put("DATABASE", buildDataItem(ruleConfiguration, ruleConfiguration.getDefaultDatabaseShardingStrategy()));
+        ShardingRuleConfiguration ruleConfig = (ShardingRuleConfiguration) rule.getConfiguration();
+        result.put("TABLE", buildDataItem(ruleConfig, ruleConfig.getDefaultTableShardingStrategy()));
+        result.put("DATABASE", buildDataItem(ruleConfig, ruleConfig.getDefaultDatabaseShardingStrategy()));
         return result;
     }
     
-    private LinkedList<Object> buildDataItem(final ShardingRuleConfiguration ruleConfiguration, final ShardingStrategyConfiguration strategyConfiguration) {
-        if (null == strategyConfiguration) {
+    private LinkedList<Object> buildDataItem(final ShardingRuleConfiguration ruleConfig, final ShardingStrategyConfiguration strategyConfig) {
+        if (null == strategyConfig) {
             return new LinkedList<>(Arrays.asList("NONE", "", "", "", ""));
         }
-        ShardingStrategyType strategyType = ShardingStrategyType.getValueOf(strategyConfiguration);
+        ShardingStrategyType strategyType = ShardingStrategyType.getValueOf(strategyConfig);
         if (strategyType == ShardingStrategyType.NONE) {
             return new LinkedList<>(Arrays.asList("NONE", "", "", "", ""));
         }
         LinkedList<Object> result = new LinkedList<>(Collections.singleton(strategyType.name()));
-        result.addAll(strategyType.getConfigurationContents(strategyConfiguration));
-        ShardingSphereAlgorithmConfiguration algorithmConfiguration = ruleConfiguration.getShardingAlgorithms().get(strategyConfiguration.getShardingAlgorithmName());
-        result.add(algorithmConfiguration.getType());
-        result.add(algorithmConfiguration.getProps());
+        result.addAll(strategyType.getConfigurationContents(strategyConfig));
+        ShardingSphereAlgorithmConfiguration algorithmConfig = ruleConfig.getShardingAlgorithms().get(strategyConfig.getShardingAlgorithmName());
+        result.add(algorithmConfig.getType());
+        result.add(algorithmConfig.getProps());
         return result;
     }
     

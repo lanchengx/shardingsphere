@@ -22,9 +22,10 @@ import org.apache.shardingsphere.encrypt.rewrite.condition.impl.EncryptEqualCond
 import org.apache.shardingsphere.encrypt.rewrite.condition.impl.EncryptInCondition;
 import org.apache.shardingsphere.encrypt.rule.EncryptColumn;
 import org.apache.shardingsphere.encrypt.rule.EncryptRule;
-import org.apache.shardingsphere.infra.binder.segment.table.TablesContext;
+import org.apache.shardingsphere.infra.binder.statement.SQLStatementContext;
+import org.apache.shardingsphere.infra.database.type.DatabaseTypeEngine;
 import org.apache.shardingsphere.infra.exception.ShardingSphereException;
-import org.apache.shardingsphere.infra.metadata.schema.ShardingSphereSchema;
+import org.apache.shardingsphere.infra.metadata.database.schema.decorator.model.ShardingSphereSchema;
 import org.apache.shardingsphere.sql.parser.sql.common.segment.dml.column.ColumnSegment;
 import org.apache.shardingsphere.sql.parser.sql.common.segment.dml.expr.BetweenExpression;
 import org.apache.shardingsphere.sql.parser.sql.common.segment.dml.expr.BinaryOperationExpression;
@@ -58,7 +59,7 @@ public final class EncryptConditionEngine {
     
     private final EncryptRule encryptRule;
     
-    private final ShardingSphereSchema schema;
+    private final Map<String, ShardingSphereSchema> schemas;
     
     static {
         LOGICAL_OPERATOR.add("AND");
@@ -72,6 +73,7 @@ public final class EncryptConditionEngine {
         SUPPORTED_COMPARE_OPERATOR.add("<");
         SUPPORTED_COMPARE_OPERATOR.add(">=");
         SUPPORTED_COMPARE_OPERATOR.add("<=");
+        SUPPORTED_COMPARE_OPERATOR.add("IS");
     }
     
     /**
@@ -79,13 +81,16 @@ public final class EncryptConditionEngine {
      *
      * @param whereSegments where segments
      * @param columnSegments column segments
-     * @param tablesContext tables context
+     * @param sqlStatementContext sql statement context
+     * @param databaseName database name
      * @return encrypt conditions
      */
-    public Collection<EncryptCondition> createEncryptConditions(final Collection<WhereSegment> whereSegments, 
-                                                                final Collection<ColumnSegment> columnSegments, final TablesContext tablesContext) {
+    public Collection<EncryptCondition> createEncryptConditions(final Collection<WhereSegment> whereSegments, final Collection<ColumnSegment> columnSegments,
+                                                                final SQLStatementContext<?> sqlStatementContext, final String databaseName) {
         Collection<EncryptCondition> result = new LinkedList<>();
-        Map<String, String> expressionTableNames = tablesContext.findTableNamesByColumnSegment(columnSegments, schema);
+        String defaultSchema = DatabaseTypeEngine.getDefaultSchemaName(sqlStatementContext.getDatabaseType(), databaseName);
+        ShardingSphereSchema schema = sqlStatementContext.getTablesContext().getSchemaName().map(schemas::get).orElseGet(() -> schemas.get(defaultSchema));
+        Map<String, String> expressionTableNames = sqlStatementContext.getTablesContext().findTableNamesByColumnSegment(columnSegments, schema);
         for (WhereSegment each : whereSegments) {
             Collection<AndPredicate> andPredicates = ExpressionExtractUtil.getAndPredicates(each.getExpr());
             for (AndPredicate predicate : andPredicates) {
@@ -105,6 +110,9 @@ public final class EncryptConditionEngine {
     }
     
     private void addEncryptConditions(final Collection<EncryptCondition> encryptConditions, final ExpressionSegment expression, final Map<String, String> expressionTableNames) {
+        if (!ExpressionExtractUtil.findNotContainsNullLiteralsExpression(expression).isPresent()) {
+            return;
+        }
         for (ColumnSegment each : ColumnExtractor.extract(expression)) {
             String tableName = expressionTableNames.getOrDefault(each.getExpression(), "");
             Optional<EncryptColumn> encryptColumn = encryptRule.findEncryptColumn(tableName, each.getIdentifier().getValue());
@@ -142,7 +150,8 @@ public final class EncryptConditionEngine {
             return Optional.empty();
         }
         return (compareRightValue instanceof SimpleExpressionSegment && !(compareRightValue instanceof SubqueryExpressionSegment))
-                ? Optional.of(createEncryptEqualCondition(tableName, expression, compareRightValue)) : Optional.empty();
+                ? Optional.of(createEncryptEqualCondition(tableName, expression, compareRightValue))
+                : Optional.empty();
     }
     
     private EncryptEqualCondition createEncryptEqualCondition(final String tableName, final BinaryOperationExpression expression, final ExpressionSegment compareRightValue) {

@@ -26,7 +26,7 @@ import org.apache.calcite.sql.SqlSelect;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.shardingsphere.infra.federation.optimizer.converter.segment.SQLSegmentConverter;
-import org.apache.shardingsphere.infra.federation.optimizer.converter.statement.SelectStatementConverter;
+import org.apache.shardingsphere.infra.federation.optimizer.converter.statement.select.SelectStatementConverter;
 import org.apache.shardingsphere.sql.parser.sql.common.segment.dml.expr.subquery.SubquerySegment;
 import org.apache.shardingsphere.sql.parser.sql.common.segment.dml.item.SubqueryProjectionSegment;
 import org.apache.shardingsphere.sql.parser.sql.common.statement.dml.SelectStatement;
@@ -39,8 +39,6 @@ import java.util.Optional;
  * Subquery projection converter. 
  */
 public final class SubqueryProjectionConverter implements SQLSegmentConverter<SubqueryProjectionSegment, SqlNode> {
-    
-    private static final String LINE_SEPARATOR = System.getProperty("line.separator");
     
     @Override
     public Optional<SqlNode> convertToSQLNode(final SubqueryProjectionSegment segment) {
@@ -66,7 +64,7 @@ public final class SubqueryProjectionConverter implements SQLSegmentConverter<Su
             int startIndex = getStartIndex(sqlNode) - 1;
             int stopIndex = getStopIndex(sqlNode) + 1;
             String text = "(" + sqlNode + ")";
-            String originalText = text.replace(LINE_SEPARATOR, " ").replace(Quoting.BACK_TICK.string, "");
+            String originalText = text.replace(System.lineSeparator(), " ").replace(Quoting.BACK_TICK.string, "");
             return Optional.of(new SubqueryProjectionSegment(new SubquerySegment(startIndex, stopIndex, selectStatement), originalText));
         }
         return Optional.empty();

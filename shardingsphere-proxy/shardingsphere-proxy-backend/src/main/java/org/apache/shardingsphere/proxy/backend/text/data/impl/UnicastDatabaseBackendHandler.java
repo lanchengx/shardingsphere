@@ -26,6 +26,7 @@ import org.apache.shardingsphere.proxy.backend.communication.jdbc.JDBCDatabaseCo
 import org.apache.shardingsphere.proxy.backend.context.ProxyContext;
 import org.apache.shardingsphere.proxy.backend.exception.NoDatabaseSelectedException;
 import org.apache.shardingsphere.proxy.backend.exception.RuleNotExistedException;
+import org.apache.shardingsphere.proxy.backend.response.data.QueryResponseRow;
 import org.apache.shardingsphere.proxy.backend.response.header.ResponseHeader;
 import org.apache.shardingsphere.proxy.backend.session.ConnectionSession;
 import org.apache.shardingsphere.proxy.backend.text.data.DatabaseBackendHandler;
@@ -52,41 +53,41 @@ public final class UnicastDatabaseBackendHandler implements DatabaseBackendHandl
     
     @Override
     public Future<ResponseHeader> executeFuture() {
-        String originSchema = connectionSession.getSchemaName();
-        String schemaName = null == originSchema ? getFirstSchemaName() : originSchema;
-        if (!ProxyContext.getInstance().getMetaData(schemaName).hasDataSource()) {
+        String originDatabase = connectionSession.getDatabaseName();
+        String databaseName = null == originDatabase ? getFirstDatabaseName() : originDatabase;
+        if (!ProxyContext.getInstance().getDatabase(databaseName).containsDataSource()) {
             throw new RuleNotExistedException();
         }
-        connectionSession.setCurrentSchema(schemaName);
+        connectionSession.setCurrentDatabase(databaseName);
         databaseCommunicationEngine = databaseCommunicationEngineFactory.newTextProtocolInstance(sqlStatementContext, sql, connectionSession.getBackendConnection());
         return ((Future<ResponseHeader>) databaseCommunicationEngine.execute()).eventually(unused -> {
-            connectionSession.setCurrentSchema(originSchema);
+            connectionSession.setCurrentDatabase(databaseName);
             return Future.succeededFuture();
         });
     }
     
     @Override
     public ResponseHeader execute() throws SQLException {
-        String originSchema = connectionSession.getDefaultSchemaName();
-        String schemaName = null == originSchema ? getFirstSchemaName() : originSchema;
-        if (!ProxyContext.getInstance().getMetaData(schemaName).hasDataSource()) {
+        String originDatabase = connectionSession.getDefaultDatabaseName();
+        String databaseName = null == originDatabase ? getFirstDatabaseName() : originDatabase;
+        if (!ProxyContext.getInstance().getDatabase(databaseName).containsDataSource()) {
             throw new RuleNotExistedException();
         }
         try {
-            connectionSession.setCurrentSchema(schemaName);
+            connectionSession.setCurrentDatabase(databaseName);
             databaseCommunicationEngine = databaseCommunicationEngineFactory.newTextProtocolInstance(sqlStatementContext, sql, connectionSession.getBackendConnection());
             return (ResponseHeader) databaseCommunicationEngine.execute();
         } finally {
-            connectionSession.setCurrentSchema(originSchema);
+            connectionSession.setCurrentDatabase(databaseName);
         }
     }
     
-    private String getFirstSchemaName() {
-        Collection<String> schemaNames = ProxyContext.getInstance().getAllSchemaNames();
-        if (schemaNames.isEmpty()) {
+    private String getFirstDatabaseName() {
+        Collection<String> databaseNames = ProxyContext.getInstance().getAllDatabaseNames();
+        if (databaseNames.isEmpty()) {
             throw new NoDatabaseSelectedException();
         }
-        Optional<String> result = schemaNames.stream().filter(each -> ProxyContext.getInstance().getMetaData(each).hasDataSource()).findFirst();
+        Optional<String> result = databaseNames.stream().filter(each -> ProxyContext.getInstance().getDatabase(each).containsDataSource()).findFirst();
         if (!result.isPresent()) {
             throw new RuleNotExistedException();
         }
@@ -99,8 +100,8 @@ public final class UnicastDatabaseBackendHandler implements DatabaseBackendHandl
     }
     
     @Override
-    public Collection<Object> getRowData() throws SQLException {
-        return databaseCommunicationEngine.getQueryResponseRow().getData();
+    public QueryResponseRow getRowData() throws SQLException {
+        return databaseCommunicationEngine.getQueryResponseRow();
     }
     
     @Override

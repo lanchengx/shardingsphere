@@ -35,10 +35,12 @@ public final class CaseParameterizedArray implements ParameterizedArray {
     
     private final String scenario;
     
+    private final String mode;
+    
     private final DatabaseType databaseType;
     
     @Override
     public String toString() {
-        return String.format("%s: %s -> %s -> %s", adapter, scenario, databaseType.getName(), testCaseContext.getTestCase().getSql());
+        return String.format("%s: %s -> %s -> %s", adapter, scenario, databaseType.getType(), testCaseContext.getTestCase().getSql());
     }
 }

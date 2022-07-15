@@ -19,6 +19,7 @@ package org.apache.shardingsphere.sharding.distsql.parser.statement;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import org.apache.shardingsphere.distsql.parser.statement.rdl.drop.DropRuleStatement;
 import org.apache.shardingsphere.sql.parser.sql.common.segment.generic.table.TableNameSegment;
 
@@ -33,8 +34,11 @@ public final class DropShardingTableRuleStatement extends DropRuleStatement {
     
     private final Collection<TableNameSegment> tableNames;
     
-    public DropShardingTableRuleStatement(final boolean containsExistsClause, final Collection<TableNameSegment> tableNames) {
-        setContainsExistClause(containsExistsClause);
+    @Setter
+    private boolean dropUnusedAlgorithms;
+    
+    public DropShardingTableRuleStatement(final boolean ifExists, final Collection<TableNameSegment> tableNames) {
+        super(ifExists);
         this.tableNames = tableNames;
     }
 }

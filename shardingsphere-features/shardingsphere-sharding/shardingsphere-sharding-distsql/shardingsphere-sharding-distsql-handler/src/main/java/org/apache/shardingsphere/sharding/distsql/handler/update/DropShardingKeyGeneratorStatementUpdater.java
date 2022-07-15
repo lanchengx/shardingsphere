@@ -19,11 +19,10 @@ package org.apache.shardingsphere.sharding.distsql.handler.update;
 
 import com.google.common.base.Strings;
 import org.apache.shardingsphere.infra.distsql.exception.DistSQLException;
-import org.apache.shardingsphere.infra.distsql.exception.rule.DuplicateKeyGeneratorException;
 import org.apache.shardingsphere.infra.distsql.exception.rule.KeyGeneratorInUsedException;
 import org.apache.shardingsphere.infra.distsql.exception.rule.RequiredKeyGeneratorMissedException;
 import org.apache.shardingsphere.infra.distsql.update.RuleDefinitionDropUpdater;
-import org.apache.shardingsphere.infra.metadata.ShardingSphereMetaData;
+import org.apache.shardingsphere.infra.metadata.database.ShardingSphereDatabase;
 import org.apache.shardingsphere.sharding.api.config.ShardingRuleConfiguration;
 import org.apache.shardingsphere.sharding.api.config.strategy.keygen.KeyGenerateStrategyConfiguration;
 import org.apache.shardingsphere.sharding.distsql.parser.statement.DropShardingKeyGeneratorStatement;
@@ -31,7 +30,6 @@ import org.apache.shardingsphere.sharding.distsql.parser.statement.DropShardingK
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
-import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
@@ -40,56 +38,31 @@ import java.util.stream.Collectors;
  */
 public final class DropShardingKeyGeneratorStatementUpdater implements RuleDefinitionDropUpdater<DropShardingKeyGeneratorStatement, ShardingRuleConfiguration> {
     
-    private static final String TYPE = DropShardingKeyGeneratorStatement.class.getName();
-    
     @Override
-    public void checkSQLStatement(final ShardingSphereMetaData shardingSphereMetaData, final DropShardingKeyGeneratorStatement sqlStatement,
-                                  final ShardingRuleConfiguration currentRuleConfig) throws DistSQLException {
-        if (null == currentRuleConfig && sqlStatement.isContainsExistClause()) {
+    public void checkSQLStatement(final ShardingSphereDatabase database,
+                                  final DropShardingKeyGeneratorStatement sqlStatement, final ShardingRuleConfiguration currentRuleConfig) throws DistSQLException {
+        if (null == currentRuleConfig && sqlStatement.isIfExists()) {
             return;
         }
-        String schemaName = shardingSphereMetaData.getName();
+        String databaseName = database.getName();
         Collection<String> keyGeneratorNames = new LinkedList<>(sqlStatement.getKeyGeneratorNames());
-        checkDuplicate(schemaName, keyGeneratorNames);
-        checkExist(schemaName, keyGeneratorNames, currentRuleConfig, sqlStatement);
-        checkInUsed(schemaName, keyGeneratorNames, currentRuleConfig);
+        checkExist(databaseName, keyGeneratorNames, currentRuleConfig, sqlStatement);
+        checkInUsed(databaseName, keyGeneratorNames, currentRuleConfig);
     }
     
-    private void checkDuplicate(final String schemaName, final Collection<String> keyGeneratorNames) throws DistSQLException {
-        Collection<String> duplicateNames = keyGeneratorNames.stream().collect(Collectors.groupingBy(each -> each, Collectors.counting())).entrySet().stream()
-                .filter(each -> each.getValue() > 1).map(Map.Entry::getKey).collect(Collectors.toSet());
-        DistSQLException.predictionThrow(duplicateNames.isEmpty(), () -> new DuplicateKeyGeneratorException("sharding", schemaName, duplicateNames));
-    }
-    
-    private void checkExist(final String schemaName, final Collection<String> keyGeneratorNames, final ShardingRuleConfiguration currentRuleConfig,
+    private void checkExist(final String databaseName, final Collection<String> keyGeneratorNames, final ShardingRuleConfiguration currentRuleConfig,
                             final DropShardingKeyGeneratorStatement sqlStatement) throws DistSQLException {
-        if (sqlStatement.isContainsExistClause()) {
+        if (sqlStatement.isIfExists()) {
             return;
         }
-        Collection<String> notExistKeyGenerators = keyGeneratorNames.stream().filter(each -> !currentRuleConfig.getKeyGenerators().containsKey(each)).collect(Collectors.toCollection(LinkedList::new));
-        DistSQLException.predictionThrow(notExistKeyGenerators.isEmpty(), () -> new RequiredKeyGeneratorMissedException("Sharding", schemaName, notExistKeyGenerators));
+        Collection<String> notExistKeyGenerators = keyGeneratorNames.stream().filter(each -> !currentRuleConfig.getKeyGenerators().containsKey(each)).collect(Collectors.toList());
+        DistSQLException.predictionThrow(notExistKeyGenerators.isEmpty(), () -> new RequiredKeyGeneratorMissedException("Sharding", databaseName, notExistKeyGenerators));
     }
     
-    private void checkInUsed(final String schemaName, final Collection<String> keyGeneratorNames, final ShardingRuleConfiguration currentRuleConfig) throws DistSQLException {
+    private void checkInUsed(final String databaseName, final Collection<String> keyGeneratorNames, final ShardingRuleConfiguration currentRuleConfig) throws DistSQLException {
         Collection<String> usedKeyGenerators = getUsedKeyGenerators(currentRuleConfig);
-        Collection<String> inUsedNames = keyGeneratorNames.stream().filter(usedKeyGenerators::contains).collect(Collectors.toCollection(LinkedList::new));
-        DistSQLException.predictionThrow(inUsedNames.isEmpty(), () -> new KeyGeneratorInUsedException("Sharding", schemaName, inUsedNames));
-    }
-    
-    @Override
-    public boolean updateCurrentRuleConfiguration(final DropShardingKeyGeneratorStatement sqlStatement, final ShardingRuleConfiguration currentRuleConfig) {
-        currentRuleConfig.getKeyGenerators().keySet().removeIf(sqlStatement.getKeyGeneratorNames()::contains);
-        return false;
-    }
-    
-    @Override
-    public Class<ShardingRuleConfiguration> getRuleConfigurationClass() {
-        return ShardingRuleConfiguration.class;
-    }
-    
-    @Override
-    public String getType() {
-        return TYPE;
+        Collection<String> inUsedNames = keyGeneratorNames.stream().filter(usedKeyGenerators::contains).collect(Collectors.toList());
+        DistSQLException.predictionThrow(inUsedNames.isEmpty(), () -> new KeyGeneratorInUsedException("Sharding", databaseName, inUsedNames));
     }
     
     private Collection<String> getUsedKeyGenerators(final ShardingRuleConfiguration shardingRuleConfig) {
@@ -104,7 +77,23 @@ public final class DropShardingKeyGeneratorStatementUpdater implements RuleDefin
     }
     
     @Override
+    public boolean updateCurrentRuleConfiguration(final DropShardingKeyGeneratorStatement sqlStatement, final ShardingRuleConfiguration currentRuleConfig) {
+        currentRuleConfig.getKeyGenerators().keySet().removeIf(sqlStatement.getKeyGeneratorNames()::contains);
+        return false;
+    }
+    
+    @Override
     public boolean hasAnyOneToBeDropped(final DropShardingKeyGeneratorStatement sqlStatement, final ShardingRuleConfiguration currentRuleConfig) {
         return null != currentRuleConfig && !getIdenticalData(currentRuleConfig.getKeyGenerators().keySet(), sqlStatement.getKeyGeneratorNames()).isEmpty();
+    }
+    
+    @Override
+    public Class<ShardingRuleConfiguration> getRuleConfigurationClass() {
+        return ShardingRuleConfiguration.class;
+    }
+    
+    @Override
+    public String getType() {
+        return DropShardingKeyGeneratorStatement.class.getName();
     }
 }

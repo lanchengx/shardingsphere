@@ -35,6 +35,10 @@ tableName
     : IDENTIFIER
     ;
 
+databaseName
+    : IDENTIFIER
+    ;
+
 schemaName
     : IDENTIFIER
     ;

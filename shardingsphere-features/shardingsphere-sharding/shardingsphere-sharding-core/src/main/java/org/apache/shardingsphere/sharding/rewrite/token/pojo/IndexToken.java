@@ -20,8 +20,8 @@ package org.apache.shardingsphere.sharding.rewrite.token.pojo;
 import lombok.Getter;
 import org.apache.shardingsphere.infra.binder.statement.SQLStatementContext;
 import org.apache.shardingsphere.infra.binder.statement.ddl.CreateIndexStatementContext;
-import org.apache.shardingsphere.infra.metadata.schema.ShardingSphereSchema;
-import org.apache.shardingsphere.infra.metadata.schema.util.IndexMetaDataUtil;
+import org.apache.shardingsphere.infra.metadata.database.schema.decorator.model.ShardingSphereSchema;
+import org.apache.shardingsphere.infra.metadata.database.schema.util.IndexMetaDataUtil;
 import org.apache.shardingsphere.infra.rewrite.sql.token.pojo.RouteUnitAware;
 import org.apache.shardingsphere.infra.rewrite.sql.token.pojo.SQLToken;
 import org.apache.shardingsphere.infra.rewrite.sql.token.pojo.Substitutable;
@@ -51,7 +51,7 @@ public final class IndexToken extends SQLToken implements Substitutable, RouteUn
     
     private final ShardingSphereSchema schema;
     
-    public IndexToken(final int startIndex, final int stopIndex, final IdentifierValue identifier, 
+    public IndexToken(final int startIndex, final int stopIndex, final IdentifierValue identifier,
                       final SQLStatementContext<?> sqlStatementContext, final ShardingRule shardingRule, final ShardingSphereSchema schema) {
         super(startIndex);
         this.stopIndex = stopIndex;
